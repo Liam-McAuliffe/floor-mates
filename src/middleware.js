@@ -9,12 +9,12 @@ export default auth(async function middleware(req) {
   const isLoggedIn = !!req.auth;
   const { pathname } = req.nextUrl;
 
-  const publicPaths = ['/login', '/register'];
+  const publicPaths = ['/login'];
 
   const isPublic = publicPaths.some((path) => pathname.startsWith(path));
 
   if (!isPublic && !isLoggedIn) {
-    const loginUrl = new URL('/login', req.url);
+    const loginUrl = new URL('/login');
 
     return NextResponse.redirect(loginUrl);
   }
