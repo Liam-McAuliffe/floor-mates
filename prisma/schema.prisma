@@ -1,0 +1,233 @@
+// prisma/schema.prisma
+
+// Specifies the database provider and connection URL (from .env)
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Specifies the Prisma Client generator
+generator client {
+  provider = "prisma-client-js"
+}
+
+// --------------- AUTH MODELS (Required by @auth/prisma-adapter) ---------------
+
+model Account {
+  id                String  @id @default(cuid()) // Or @default(uuid())
+  userId            String // Changed from "userId" UUID to String if User id is String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int? // Changed from BIGINT to Int for Prisma standard
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId]) // Index for adapter lookups
+}
+
+model Session {
+  id           String   @id @default(cuid()) // Or @default(uuid())
+  sessionToken String   @unique
+  userId       String // Changed from "userId" UUID to String if User id is String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId]) // Index for adapter lookups
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@id([identifier, token]) // Composite Primary Key
+}
+
+// --------------- YOUR APPLICATION MODELS ---------------
+
+// User Profile Model (Linked to Auth)
+model User {
+  id            String    @id @default(cuid()) // Using CUID, can also use @default(uuid()) String
+  name          String?
+  email         String?   @unique // Email likely comes from Auth, make unique
+  emailVerified DateTime? // Standard adapter field (DateTime corresponds to TIMESTAMPTZ)
+  image         String? // Standard adapter field
+  role          String    @default("student") // Add constraints via application logic or DB CHECK
+  major         String? // Your custom field
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt // Prisma handles automatic updates
+
+  // Relations
+  accounts          Account[] // User can have multiple accounts (e.g., Google, GitHub)
+  sessions          Session[] // User can have multiple sessions
+  memberships       FloorMembership[]
+  chatMessages      ChatMessage[]
+  posts             Post[]
+  postUpvotes       PostUpvote[]
+  postComments      PostComment[]
+  bulletinPosts     BulletinPost[] // Posts created BY this user (RA/Admin)
+  bulletinLikes     BulletinLike[]
+  bulletinComments  BulletinComment[]
+  createdFloorCodes FloorInvitationCode[] @relation("CreatedCodes")
+}
+
+model Floor {
+  id           String   @id @default(cuid()) // Or @default(uuid()) String
+  name         String
+  buildingName String
+  createdAt    DateTime @default(now())
+
+  // Relations
+  memberships         FloorMembership[]
+  chatMessages        ChatMessage[]
+  posts               Post[]
+  FloorInvitationCode FloorInvitationCode[]
+}
+
+model FloorMembership {
+  userId   String
+  floorId  String
+  joinDate DateTime @default(now())
+
+  // Relations
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  floor Floor @relation(fields: [floorId], references: [id], onDelete: Cascade)
+
+  @@id([userId, floorId]) // Composite Primary Key
+  @@index([floorId]) // Index for finding members by floor
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid()) // Or @default(uuid()) String
+  content   String
+  createdAt DateTime @default(now())
+
+  // Relations
+  floorId String
+  userId  String
+  floor   Floor  @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([floorId, createdAt(sort: Desc)])
+  @@index([userId])
+}
+
+model Post {
+  id          String    @id @default(cuid()) // Or @default(uuid()) String
+  title       String?
+  content     String
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime?
+  isPinned    Boolean   @default(false)
+  upvoteCount Int       @default(0) // Keep if needed, update manually or via triggers
+
+  // Relations
+  floorId  String
+  userId   String
+  floor    Floor         @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  upvotes  PostUpvote[]
+  comments PostComment[]
+
+  @@index([floorId, createdAt(sort: Desc)])
+  @@index([userId])
+  @@index([isPinned]) // Basic index on boolean
+}
+
+model PostUpvote {
+  createdAt DateTime @default(now())
+
+  // Relations
+  postId String
+  userId String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId]) // Composite Primary Key
+  @@index([userId])
+}
+
+model PostComment {
+  id        String   @id @default(cuid()) // Or @default(uuid()) String
+  content   String
+  createdAt DateTime @default(now())
+
+  // Relations
+  postId String
+  userId String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt(sort: Desc)])
+  @@index([userId])
+}
+
+model BulletinPost {
+  id        String    @id @default(cuid()) // Or @default(uuid()) String
+  title     String
+  content   String
+  createdAt DateTime  @default(now())
+  eventDate DateTime?
+  likeCount Int       @default(0) // Keep if needed, update manually or via triggers
+
+  // Relations
+  userId   String? // Nullable if creator user is deleted
+  user     User?             @relation(fields: [userId], references: [id], onDelete: SetNull) // Use SetNull if you want posts to remain if user is deleted
+  likes    BulletinLike[]
+  comments BulletinComment[]
+
+  @@index([createdAt(sort: Desc)])
+  @@index([userId])
+}
+
+model BulletinLike {
+  createdAt DateTime @default(now())
+
+  // Relations
+  bulletinPostId String
+  userId         String
+  bulletinPost   BulletinPost @relation(fields: [bulletinPostId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([bulletinPostId, userId]) // Composite Primary Key
+  @@index([userId])
+}
+
+model BulletinComment {
+  id        String   @id @default(cuid()) // Or @default(uuid()) String
+  content   String
+  createdAt DateTime @default(now())
+
+  // Relations
+  bulletinPostId String
+  userId         String
+  bulletinPost   BulletinPost @relation(fields: [bulletinPostId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([bulletinPostId, createdAt(sort: Desc)])
+  @@index([userId])
+}
+
+// Add to your schema.prisma
+model FloorInvitationCode {
+  code        String    @id // The unique code itself (e.g., "ABC-XYZ-123")
+  floorId     String // Foreign key to the Floor model
+  floor       Floor     @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  isActive    Boolean   @default(true) // Can the code still be used?
+  isSingleUse Boolean   @default(true) // Deactivate after one use?
+  expiresAt   DateTime? // Optional expiry date for the code
+  createdBy   String? // Optional: User ID of the RA/Admin who created it
+  creator     User?     @relation("CreatedCodes", fields: [createdBy], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+
+  @@index([floorId])
+}

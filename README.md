@@ -1,24 +1,3 @@
-7.  [ ] Basic Vercel project setup for CI/CD.
-
-**Phase 2: Database Schema & Core Models**
-
-1.  [ ] Design PostgreSQL schema in Supabase:
-    - `users` (linked to `auth.users`, stores profile info like `name`, `major`, `profile_picture_url`, `role` ['student', 'ra', 'admin']).
-    - `floors` (`id`, `name`, `building_name`).
-    - `floor_memberships` (`user_id`, `floor_id`, `join_date`).
-    - `chat_messages` (`id`, `floor_id`, `user_id`, `content`, `created_at`).
-    - `posts` (`id`, `floor_id`, `user_id`, `title`, `content`, `created_at`, `expires_at`, `is_pinned`).
-    - `post_upvotes` (`post_id`, `user_id`).
-    - `post_comments` (`id`, `post_id`, `user_id`, `content`, `created_at`).
-    - `bulletin_posts` (`id`, `user_id` (creator: RA/Admin), `title`, `content`, `created_at`, `event_date` (optional)).
-    - `bulletin_likes` (`bulletin_post_id`, `user_id`).
-    - `bulletin_comments` (`id`, `bulletin_post_id`, `user_id`, `content`, `created_at`).
-2.  [ ] Implement Row Level Security (RLS) policies in Supabase for data access control (e.g., users can only see messages/posts for their own floor, RAs have broader access within their floor, only RAs/Admins can write to `bulletin_posts`).
-
-**Phase 3: Authentication & User Profiles**
-
-1.  [ ] Build Login/Registration UI components.
-2.  [ ] Connect UI to NextAuth.js for sign-in/sign-up flows.
 3.  [ ] Implement logic to assign users to a `floor` upon registration or via an RA/Admin interface (this needs careful design - how is floor assigned initially?).
 4.  [ ] Create User Profile page (`pages/profile/`) allowing users to view/edit their `name`, `major`, `profile_picture`.
 5.  [ ] Ensure user `role` (student, RA, admin) is correctly managed and reflected in the UI and permissions. Store role in the `users` table.
