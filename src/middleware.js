@@ -1,23 +1,27 @@
-import { withAuth } from 'next-auth/middleware';
+import NextAuth from 'next-auth';
+
+import { authConfig } from '../auth.config';
 import { NextResponse } from 'next/server';
 
-export default withAuth(
-  function middleware(req) {
-    return NextResponse.next();
-  },
-  {
-    callbacks: {
-      authorized: ({ token }) => {
-        return !!token;
-      },
-    },
+const { auth } = NextAuth(authConfig);
+
+export default auth(async function middleware(req) {
+  const isLoggedIn = !!req.auth;
+  const { pathname } = req.nextUrl;
+
+  const publicPaths = ['/login', '/register'];
+
+  const isPublic = publicPaths.some((path) => pathname.startsWith(path));
+
+  if (!isPublic && !isLoggedIn) {
+    const loginUrl = new URL('/login', req.url);
+
+    return NextResponse.redirect(loginUrl);
   }
-);
+
+  return NextResponse.next();
+});
 
 export const config = {
-  matcher: [
-    '/((?!api/auth|_next/static|_next/image|favicon.ico|login|register).*)',
-
-    '/',
-  ],
+  matcher: ['/((?!api/auth|_next/static|_next/image|favicon.ico).*)'],
 };
