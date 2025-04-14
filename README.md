@@ -1,15 +1,3 @@
-4.  [ ] Configure Supabase client library (`@supabase/supabase-js`) in `lib/supabaseClient.js`.
-5.  [ ] Set up NextAuth.js:
-    - Install `next-auth`.
-    - Create `pages/api/auth/[...nextauth].js`.
-    - Configure providers (e.g., Email, Credentials, potentially custom OAuth for school SSO if feasible).
-    - Integrate Supabase Adapter for NextAuth.js (`@next-auth/supabase-adapter`) to sync users between NextAuth and Supabase Auth/DB.
-    - Wrap `_app.js` with `SessionProvider`.
-6.  [ ] Set up Redux Toolkit:
-    - Install `@reduxjs/toolkit react-redux`.
-    - Configure Redux store (`store/store.js`).
-    - Define initial slices (e.g., `authSlice`, `userSlice`).
-    - Wrap `_app.js` with Redux `Provider`.
 7.  [ ] Basic Vercel project setup for CI/CD.
 
 **Phase 2: Database Schema & Core Models**
