@@ -1,9 +1,12 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
+import { useSelector } from 'react-redux';
+import { selectUserProfile } from '@/store/slices/userSlice';
 
 export default function HomePage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
+  const userProfile = useSelector(selectUserProfile);
 
   if (status === 'loading') {
     return (
@@ -22,8 +25,7 @@ export default function HomePage() {
     );
   }
 
-  const displayName =
-    session?.user?.name ?? session?.user?.email ?? 'FloorMate';
+  const displayName = userProfile?.name ?? userProfile?.email ?? 'FloorMate';
 
   return (
     <main className="space-y-6">

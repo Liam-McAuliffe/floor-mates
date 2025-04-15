@@ -1,16 +1,18 @@
-// src/components/Sidebar.jsx
 'use client';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import { useSelector } from 'react-redux';
+import { selectUserProfile } from '@/store/slices/userSlice';
 import { Home, Newspaper, User } from 'lucide-react';
 import LogoutButton from '@/features/auth/components/LogOutButton';
 import Image from 'next/image';
 
 const Sidebar = () => {
   const pathname = usePathname();
-  const { data: session, status } = useSession();
+  const { status } = useSession();
+  const userProfile = useSelector(selectUserProfile);
 
   const navLinks = [
     { name: 'Home/Feed', href: '/', icon: Home },
@@ -30,7 +32,8 @@ const Sidebar = () => {
     return null;
   }
 
-  const displayName = session.user?.name ?? session.user?.email ?? 'User';
+  const displayName = userProfile?.name ?? userProfile?.email ?? 'User';
+  const displayImage = userProfile?.image;
 
   return (
     <aside className="w-64 bg-dk-green p-5 text-white/[0.87] flex flex-col shrink-0">
@@ -68,9 +71,9 @@ const Sidebar = () => {
 
       <div className="mt-auto border-t border-md-green pt-4">
         <div className="flex items-center justify-between p-1 rounded transition-colors">
-          {session.user?.image && (
+          {displayImage && (
             <Image
-              src={session.user.image}
+              src={displayImage}
               alt="Avatar"
               width={24}
               height={24}
