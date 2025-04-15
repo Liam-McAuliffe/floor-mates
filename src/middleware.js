@@ -14,7 +14,7 @@ export default auth(async function middleware(req) {
   const isPublic = publicPaths.some((path) => pathname.startsWith(path));
 
   if (!isPublic && !isLoggedIn) {
-    const loginUrl = new URL('/login');
+    const loginUrl = new URL('/login', req.url);
 
     return NextResponse.redirect(loginUrl);
   }
