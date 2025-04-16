@@ -4,17 +4,24 @@ import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { useDispatch } from 'react-redux';
 import { userProfileUpdated } from '@/store/slices/userSlice';
+import { useRouter } from 'next/navigation';
+import { signOut } from 'next-auth/react';
 
 export default function ProfileEditForm({ initialData }) {
   const dispatch = useDispatch();
   const inputFileRef = useRef(null);
+  const router = useRouter();
 
   const [name, setName] = useState(initialData?.name ?? '');
   const [major, setMajor] = useState(initialData?.major ?? '');
+
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
+
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const [errorMessage, setErrorMessage] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
 
@@ -135,7 +142,44 @@ export default function ProfileEditForm({ initialData }) {
       setIsSaving(false);
     }
   };
+
+  const handleDeleteAccount = async () => {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    if (!window.confirm('Are you sure you want to delete your account?')) {
+      return;
+    }
+    setIsDeleting(true);
+
+    try {
+      const response = await fetch('/api/user/profile', {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        let errorMsg = `Error deleting account: ${response.status}`;
+        try {
+          const errData = await response.json();
+          errorMsg = errData.error || errorMsg;
+        } catch {}
+        throw new Error(errorMsg);
+      }
+
+      setSuccessMessage('Account deleted successfully.');
+      await signOut({ callbackUrl: '/login' });
+    } catch (error) {
+      setErrorMessage(`Deletion failed: ${error.message}`);
+      setIsDeleting(false);
+    }
+  };
+
   const displayImageUrl = finalImageUrl || previewUrl || initialData?.image;
+
+  const buttonText = isUploading
+    ? 'Uploading...'
+    : isSaving
+    ? 'Saving...'
+    : 'Save Changes';
 
   return (
     <form
@@ -225,22 +269,30 @@ export default function ProfileEditForm({ initialData }) {
       </div>
 
       <div className="pt-4 flex items-center gap-4">
-        <button
-          type="submit"
-          disabled={isSaving || isUploading}
-          className="px-5 py-2.5 rounded-lg bg-brand text-white font-semibold hover:bg-opacity-85 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-medium focus:ring-brand disabled:opacity-50 disabled:cursor-wait"
-        >
-          {isUploading
-            ? 'Uploading...'
-            : isSaving
-            ? 'Saving...'
-            : 'Save Changes'}
-        </button>
+        <div className="flex items-center gap-4">
+          <button
+            className="px-5 py-2.5 rounded-lg bg-brand text-white font-semibold hover:bg-opacity-85 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-medium focus:ring-brand disabled:opacity-50 disabled:cursor-wait"
+            disabled={isSaving || isUploading}
+          >
+            {buttonText}
+          </button>
 
-        {successMessage && (
-          <p className="text-sm text-green-400">{successMessage}</p>
-        )}
-        {errorMessage && <p className="text-sm text-red-400">{errorMessage}</p>}
+          <button
+            type="button"
+            onClick={handleDeleteAccount}
+            disabled={isSaving || isUploading || isDeleting}
+            className="px-5 py-2.5 rounded-lg bg-red-600 font-semibold hover:bg-red-700 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-medium focus:ring-red-500 disabled:opacity-50 disabled:cursor-wait"
+          >
+            {isDeleting ? 'Deleting...' : 'Delete Account'}
+          </button>
+
+          {successMessage && (
+            <p className="text-sm text-green-400">{successMessage}</p>
+          )}
+          {errorMessage && (
+            <p className="text-sm text-red-400">{errorMessage}</p>
+          )}
+        </div>
       </div>
     </form>
   );

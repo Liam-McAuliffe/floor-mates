@@ -96,3 +96,37 @@ export async function GET(request) {
     );
   }
 }
+
+export async function DELETE(request) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  }
+  const userId = session.user.id;
+  console.log(
+    `[API DELETE /user/profile] Attempting deletion for user: ${userId}`
+  );
+  try {
+    const deletedUser = await prisma.user.delete({
+      where: { id: userId },
+    });
+    console.log(
+      `[API DELETE /user/profile] User deleted successfully: ${deletedUser.id}`
+    );
+    return NextResponse.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error(`[API DELETE /user/profile] Error deleting user: ${error}`);
+    if (error.code === 'P2025') {
+      return NextResponse.json(
+        { error: 'User not found to delete' },
+        { status: 404 }
+      );
+    }
+    return NextResponse.json(
+      {
+        error: `Failed to delete profile: ${error.message || 'Unknown error'}`,
+      },
+      { status: 500 }
+    );
+  }
+}
