@@ -6,6 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
+    "start:socket": "node socket-server.js",
     "lint": "next lint"
   },
   "dependencies": {
@@ -14,7 +15,11 @@
     "@prisma/client": "^6.6.0",
     "@reduxjs/toolkit": "^2.6.1",
     "@supabase/supabase-js": "^2.49.4",
+    "@types/jsonwebtoken": "^9.0.9",
     "@vercel/blob": "^1.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.488.0",
     "next": "^15.3.0",
     "next-auth": "^5.0.0-beta.25",
@@ -22,7 +27,9 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-icons": "^5.5.0",
-    "react-redux": "^9.2.0"
+    "react-redux": "^9.2.0",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
