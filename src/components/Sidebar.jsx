@@ -22,7 +22,7 @@ const Sidebar = () => {
 
   if (status === 'loading') {
     return (
-      <aside className="w-64 h-screen bg-dk-green p-5 text-white/[0.87]">
+      <aside className="w-64 h-screen bg-medium p-5 text-white/[0.87]">
         <div>Loading...</div>
       </aside>
     );
@@ -36,7 +36,7 @@ const Sidebar = () => {
   const displayImage = userProfile?.image;
 
   return (
-    <aside className="w-64 bg-dk-green p-5 text-white/[0.87] flex flex-col shrink-0">
+    <aside className="w-64 bg-medium p-5 text-white/[0.87] flex flex-col shrink-0">
       <div className="mb-10">
         <Link
           href="/"
@@ -56,8 +56,8 @@ const Sidebar = () => {
                   href={link.href}
                   className={`flex items-center py-2 px-3 rounded-md transition-colors ${
                     isActive
-                      ? 'bg-brand-green text-white font-medium'
-                      : 'text-white/70 hover:bg-md-green hover:text-white'
+                      ? 'bg-brand text-white font-medium'
+                      : 'text-white/70 hover:bg-light hover:text-white'
                   }`}
                 >
                   <link.icon className="w-5 h-5 mr-3 shrink-0" />
@@ -69,20 +69,20 @@ const Sidebar = () => {
         </ul>
       </nav>
 
-      <div className="mt-auto border-t border-md-green pt-4">
+      <div className="mt-auto border-t border-light pt-4">
         <div className="flex items-center justify-between p-1 rounded transition-colors">
           {displayImage && (
             <Image
               src={displayImage}
               alt="Avatar"
-              width={24}
-              height={24}
+              width={26}
+              height={26}
               className="rounded-full mr-2"
             />
           )}
 
           <span
-            className="text-sm font-medium text-white truncate flex-1 mr-2"
+            className="text-md font-medium text-white truncate flex-1 mr-2"
             title={displayName}
           >
             {displayName}

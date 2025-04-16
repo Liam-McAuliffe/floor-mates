@@ -11,8 +11,8 @@ export default function HomePage() {
   if (status === 'loading') {
     return (
       <main className="space-y-4 p-6">
-        <div className="h-8 bg-dk-green rounded w-1/2 animate-pulse"></div>
-        <div className="h-6 bg-dk-green rounded w-3/4 animate-pulse"></div>
+        <div className="h-8 bg-medium rounded w-1/2 animate-pulse"></div>
+        <div className="h-6 bg-medium rounded w-3/4 animate-pulse"></div>
       </main>
     );
   }

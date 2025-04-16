@@ -15,11 +15,11 @@ export default function GoogleSignInButton() {
         text-base font-medium           
         rounded-lg shadow-sm                       
         text-white                   
-        bg-brand-green                           
-        hover:bg-md-green                            
+        bg-brand                           
+        hover:bg-light                            
         focus:outline-none focus:ring-2
-        focus:ring-offset-2 focus:ring-brand-green
-        focus:ring-offset-dk-green                   
+        focus:ring-offset-2 focus:ring-brand
+        focus:ring-offset-medium                   
         transition-colors duration-150 ease-in-out  
         disabled:opacity-60 disabled:cursor-not-allowed 
       "

@@ -140,7 +140,7 @@ export default function ProfileEditForm({ initialData }) {
   return (
     <form
       onSubmit={handleSaveChanges}
-      className="p-6 bg-dk-green rounded-lg shadow border border-md-green/50 space-y-6"
+      className="p-6 bg-medium rounded-lg shadow border border-light/50 space-y-6"
     >
       <div className="flex flex-col sm:flex-row items-center gap-4">
         {displayImageUrl ? (
@@ -150,10 +150,10 @@ export default function ProfileEditForm({ initialData }) {
             alt="Current profile picture"
             width={100}
             height={100}
-            className="rounded-full border-2 border-brand-green object-cover bg-charcoal"
+            className="rounded-full border-2 border-brand object-cover bg-dark"
           />
         ) : (
-          <div className="w-[100px] h-[100px] rounded-full bg-charcoal flex items-center justify-center text-white/50 text-sm border-2 border-md-green">
+          <div className="w-[100px] h-[100px] rounded-full bg-dark flex items-center justify-center text-white/50 text-sm border-2 border-light">
             No Image
           </div>
         )}
@@ -168,7 +168,7 @@ export default function ProfileEditForm({ initialData }) {
 
         <label
           htmlFor="profilePicture"
-          className={`cursor-pointer px-4 py-2 rounded border border-brand-green text-brand-green hover:bg-brand-green hover:text-white transition-colors text-sm ${
+          className={`cursor-pointer px-4 py-2 rounded border border-brand  bg-brand text-white transition-colors text-sm ${
             isUploading ? 'opacity-50 cursor-not-allowed' : ''
           }`}
         >
@@ -193,7 +193,7 @@ export default function ProfileEditForm({ initialData }) {
           id="displayName"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full px-3 py-2 bg-charcoal border border-md-green rounded-md text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-transparent"
+          className="w-full px-3 py-2 bg-dark border border-light rounded-md text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
         />
       </div>
 
@@ -210,7 +210,7 @@ export default function ProfileEditForm({ initialData }) {
           value={major}
           onChange={(e) => setMajor(e.target.value)}
           placeholder="e.g., Computer Science"
-          className="w-full px-3 py-2 bg-charcoal border border-md-green rounded-md text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-transparent"
+          className="w-full px-3 py-2 bg-dark border border-light rounded-md text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
         />
       </div>
 
@@ -228,7 +228,7 @@ export default function ProfileEditForm({ initialData }) {
         <button
           type="submit"
           disabled={isSaving || isUploading}
-          className="px-5 py-2.5 rounded-lg bg-brand-green text-white font-semibold hover:bg-opacity-85 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-dk-green focus:ring-brand-green disabled:opacity-50 disabled:cursor-wait"
+          className="px-5 py-2.5 rounded-lg bg-brand text-white font-semibold hover:bg-opacity-85 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-medium focus:ring-brand disabled:opacity-50 disabled:cursor-wait"
         >
           {isUploading
             ? 'Uploading...'
