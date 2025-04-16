@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useSelector } from 'react-redux';
 import { selectUserProfile } from '@/store/slices/userSlice';
-import { Home, Newspaper, User } from 'lucide-react';
+import { Home, Newspaper, User, MessageSquare } from 'lucide-react';
 import LogoutButton from '@/features/auth/components/LogOutButton';
 import Image from 'next/image';
 
@@ -14,18 +14,27 @@ const Sidebar = () => {
   const { status } = useSession();
   const userProfile = useSelector(selectUserProfile);
 
-  const navLinks = [
-    { name: 'Home/Feed', href: '/', icon: Home },
+  const baseNavLinks = [
+    { name: 'Home', href: '/', icon: Home },
     { name: 'Bulletin Board', href: '/bulletin', icon: Newspaper },
     { name: 'Profile', href: '/profile', icon: User },
   ];
 
+  let floorLink = null;
+  const userFloorId =
+    userProfile?.floorId || userProfile?.floorMemberships?.[0]?.floorId;
+
+  if (userFloorId) {
+    floorLink = {
+      name: 'My Floor Chat',
+      href: `/floor/${userFloorId}`,
+      icon: MessageSquare,
+    };
+  }
+
+  const navLinks = floorLink ? [...baseNavLinks, floorLink] : baseNavLinks;
+
   if (status === 'loading') {
-    return (
-      <aside className="w-64 h-screen bg-medium p-5 text-white/[0.87]">
-        <div>Loading...</div>
-      </aside>
-    );
   }
 
   if (status === 'unauthenticated') {
@@ -49,7 +58,10 @@ const Sidebar = () => {
       <nav className="flex-grow">
         <ul>
           {navLinks.map((link) => {
-            const isActive = pathname === link.href;
+            const isActive = link.href.startsWith('/floor')
+              ? pathname.startsWith('/floor')
+              : pathname === link.href;
+
             return (
               <li key={link.name} className="mb-3">
                 <Link

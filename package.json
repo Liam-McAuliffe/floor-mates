@@ -21,6 +21,7 @@
     "dotenv": "^16.5.0",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.488.0",
+    "nanoid": "^5.1.5",
     "next": "^15.3.0",
     "next-auth": "^5.0.0-beta.25",
     "postcss": "^8.5.3",
