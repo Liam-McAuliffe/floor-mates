@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '../../../../../auth';
 import prisma from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 
 export async function PATCH(request) {
   const session = await auth();
@@ -12,7 +13,6 @@ export async function PATCH(request) {
   let updateData = {};
   try {
     const requestBody = await request.json();
-
     if (requestBody.name !== undefined) {
       updateData.name = requestBody.name.trim();
     }
@@ -29,7 +29,8 @@ export async function PATCH(request) {
         updateData.image = null;
       }
     }
-  } catch {
+  } catch (error) {
+    console.error('Error parsing PATCH body:', error);
     return NextResponse.json(
       { error: 'Invalid request body' },
       { status: 400 }
@@ -56,8 +57,10 @@ export async function PATCH(request) {
         role: true,
       },
     });
+
     return NextResponse.json(updatedUser);
   } catch (error) {
+    console.error('Error updating profile:', error);
     return NextResponse.json(
       { error: `Failed to update profile: ${error.message}` },
       { status: 500 }
@@ -81,6 +84,12 @@ export async function GET(request) {
         image: true,
         major: true,
         role: true,
+        memberships: {
+          select: {
+            floorId: true,
+          },
+          take: 1,
+        },
       },
     });
 
@@ -88,8 +97,15 @@ export async function GET(request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    return NextResponse.json(user);
+    const userProfileData = {
+      ...user,
+      floorId: user.memberships?.[0]?.floorId ?? null,
+    };
+    delete userProfileData.memberships;
+
+    return NextResponse.json(userProfileData);
   } catch (error) {
+    console.error('Error fetching user profile with floor:', error);
     return NextResponse.json(
       { error: `Failed to fetch profile: ${error.message}` },
       { status: 500 }
@@ -116,7 +132,10 @@ export async function DELETE(request) {
     return NextResponse.json({ message: 'User deleted successfully' });
   } catch (error) {
     console.error(`[API DELETE /user/profile] Error deleting user: ${error}`);
-    if (error.code === 'P2025') {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2025'
+    ) {
       return NextResponse.json(
         { error: 'User not found to delete' },
         { status: 404 }
