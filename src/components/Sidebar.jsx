@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useSelector } from 'react-redux';
 import { selectUserProfile } from '@/store/slices/userSlice';
-import { Home, Newspaper, User, MessageSquare } from 'lucide-react';
+import { Home, User, MessageSquare, LayoutList } from 'lucide-react';
 import LogoutButton from '@/features/auth/components/LogOutButton';
 import Image from 'next/image';
 
@@ -16,34 +16,34 @@ const Sidebar = () => {
 
   const baseNavLinks = [
     { name: 'Home', href: '/', icon: Home },
-    { name: 'Bulletin Board', href: '/bulletin', icon: Newspaper },
     { name: 'Profile', href: '/profile', icon: User },
   ];
 
-  let floorLink = null;
-  const userFloorId =
-    userProfile?.floorId || userProfile?.floorMemberships?.[0]?.floorId;
+  let dynamicFloorLinks = [];
+  const userFloorId = userProfile?.floorId;
 
   if (userFloorId) {
-    floorLink = {
-      name: 'My Floor Chat',
-      href: `/floor/${userFloorId}`,
-      icon: MessageSquare,
-    };
-  } else {
-    floorLink = {
-      name: 'Join a Floor',
-      href: '/floor/join',
-      icon: MessageSquare,
-    };
+    dynamicFloorLinks = [
+      {
+        name: 'Floor Posts',
+        icon: LayoutList,
+        href: `/floor/${userFloorId}/posts`,
+      },
+      {
+        name: 'Floor Chat',
+        icon: MessageSquare,
+        href: `/floor/${userFloorId}/chat`,
+      },
+    ];
+  } else if (status === 'authenticated') {
+    dynamicFloorLinks = [
+      { name: 'Join a Floor', icon: MessageSquare, href: '/floor/join' },
+    ];
   }
 
-  const navLinks = floorLink ? [...baseNavLinks, floorLink] : baseNavLinks;
+  const navLinks = [...baseNavLinks, ...dynamicFloorLinks];
 
-  if (status === 'loading') {
-  }
-
-  if (status === 'unauthenticated') {
+  if (status === 'loading' || status === 'unauthenticated') {
     return null;
   }
 
@@ -51,7 +51,7 @@ const Sidebar = () => {
   const displayImage = userProfile?.image;
 
   return (
-    <aside className="w-64 bg-medium p-5 text-white/[0.87] flex flex-col shrink-0">
+    <aside className="w-64 bg-medium p-5 text-white/[0.87] flex flex-col shrink-0 border-r border-light/20">
       <div className="mb-10">
         <Link
           href="/"
@@ -64,9 +64,7 @@ const Sidebar = () => {
       <nav className="flex-grow">
         <ul>
           {navLinks.map((link) => {
-            const isActive = link.href.startsWith('/floor')
-              ? pathname.startsWith('/floor')
-              : pathname === link.href;
+            const isActive = pathname === link.href;
 
             return (
               <li key={link.name} className="mb-3">
@@ -74,7 +72,7 @@ const Sidebar = () => {
                   href={link.href}
                   className={`flex items-center py-2 px-3 rounded-md transition-colors ${
                     isActive
-                      ? 'bg-brand text-white font-medium'
+                      ? 'bg-brand text-white font-medium shadow-sm'
                       : 'text-white/70 hover:bg-light hover:text-white'
                   }`}
                 >
@@ -87,20 +85,24 @@ const Sidebar = () => {
         </ul>
       </nav>
 
-      <div className="mt-auto border-t border-light pt-4">
+      <div className="mt-auto border-t border-light/30 pt-4">
         <div className="flex items-center justify-between p-1 rounded transition-colors">
-          {displayImage && (
+          {displayImage ? (
             <Image
               src={displayImage}
               alt="Avatar"
-              width={26}
-              height={26}
-              className="rounded-full mr-2"
+              width={28}
+              height={28}
+              className="rounded-full mr-2 bg-dark"
             />
+          ) : (
+            <div className="w-7 h-7 rounded-full mr-2 bg-dark border border-light flex items-center justify-center text-xs text-white/50">
+              {displayName?.charAt(0)?.toUpperCase() || '?'}
+            </div>
           )}
 
           <span
-            className="text-md font-medium text-white truncate flex-1 mr-2"
+            className="text-sm font-medium text-white truncate flex-1 mr-2"
             title={displayName}
           >
             {displayName}
