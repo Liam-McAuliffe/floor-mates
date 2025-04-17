@@ -68,6 +68,18 @@ const userSlice = createSlice({
         );
       }
     },
+    userLeftFloor: (state) => {
+      if (state.data) {
+        console.log('[userSlice] Removing user from floor.');
+        state.data.floorId = null;
+        state.status = 'succeeded';
+        state.error = null;
+      } else {
+        console.warn(
+          '[userSlice] userLeftFloor called but no user data exists.'
+        );
+      }
+    },
   },
 
   extraReducers: (builder) => {
@@ -89,7 +101,7 @@ const userSlice = createSlice({
   },
 });
 
-export const { clearUser, userProfileUpdated, userJoinedFloor } =
+export const { clearUser, userProfileUpdated, userJoinedFloor, userLeftFloor } =
   userSlice.actions;
 
 export const selectUserProfile = (state) => state.user.data;

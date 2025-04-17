@@ -4,8 +4,17 @@ import JoinFloorForm from '@/features/floors/components/JoinFloorForm';
 import { selectUserProfile } from '@/store/slices/userSlice';
 import Link from 'next/link';
 import { useSelector } from 'react-redux';
+import { Suspense } from 'react';
 
-export default function JoinFlorr() {
+function JoinFormLoading() {
+  return (
+    <div className="p-6 bg-medium rounded-lg shadow border border-light/50 max-w-sm mx-auto text-center text-white/50">
+      Loading form...
+    </div>
+  );
+}
+
+export default function JoinFloorPage() {
   const userProfile = useSelector(selectUserProfile);
 
   const hasFloor = !!(
@@ -13,10 +22,12 @@ export default function JoinFlorr() {
   );
   const currentFloorId =
     userProfile?.floorId || userProfile?.floorMemberships?.[0]?.floorId;
+
   return (
-    <div>
+    <div className="p-6">
+      {' '}
       {hasFloor ? (
-        <div className="text-center p-4 bg-medium rounded-lg border border-light/50">
+        <div className="text-center p-4 bg-medium rounded-lg border border-light/50 max-w-sm mx-auto">
           <p className="text-white/80 mb-2">
             You are currently a member of a floor.
           </p>
@@ -28,7 +39,9 @@ export default function JoinFlorr() {
           </Link>
         </div>
       ) : (
-        <JoinFloorForm />
+        <Suspense fallback={<JoinFormLoading />}>
+          <JoinFloorForm />
+        </Suspense>
       )}
     </div>
   );

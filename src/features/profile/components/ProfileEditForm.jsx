@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { useDispatch } from 'react-redux';
-import { userProfileUpdated } from '@/store/slices/userSlice';
+import { userProfileUpdated, userLeftFloor } from '@/store/slices/userSlice';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 
@@ -21,6 +21,9 @@ export default function ProfileEditForm({ initialData }) {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const [isLeaving, setIsLeaving] = useState(false);
+  const [leaveError, setLeaveError] = useState(null);
 
   const [errorMessage, setErrorMessage] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
@@ -140,6 +143,44 @@ export default function ProfileEditForm({ initialData }) {
       );
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleLeaveFloor = async () => {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setLeaveError(null);
+
+    if (!initialData?.floorId) {
+      setLeaveError('You are not currently in a floor.');
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to leave your current floor?')) {
+      return;
+    }
+    setIsLeaving(true);
+
+    try {
+      const response = await fetch('/api/floors/leave', {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || `Failed to leave floor (${response.status})`
+        );
+      }
+
+      setSuccessMessage(data.message || 'Successfully left floor.');
+      dispatch(userLeftFloor());
+    } catch (error) {
+      console.error('Leave floor error:', error);
+      setLeaveError(`Leave failed: ${error.message}`);
+    } finally {
+      setIsLeaving(false);
     }
   };
 
@@ -268,30 +309,39 @@ export default function ProfileEditForm({ initialData }) {
         </p>
       </div>
 
-      <div className="pt-4 flex items-center gap-4">
-        <div className="flex items-center gap-4">
-          <button
-            className="px-5 py-2.5 rounded-lg bg-brand text-white font-semibold hover:bg-opacity-85 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-medium focus:ring-brand disabled:opacity-50 disabled:cursor-wait"
-            disabled={isSaving || isUploading}
-          >
-            {buttonText}
-          </button>
-
+      <div className="pt-4 flex flex-wrap items-center gap-4">
+        <button
+          className="px-5 py-2.5 rounded-lg bg-brand text-white font-semibold hover:bg-opacity-85 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-medium focus:ring-brand disabled:opacity-50 disabled:cursor-wait"
+          disabled={isSaving || isUploading || isLeaving || isDeleting} // Disable if leaving
+        >
+          {buttonText}
+        </button>
+        {initialData?.floorId && (
           <button
             type="button"
-            onClick={handleDeleteAccount}
-            disabled={isSaving || isUploading || isDeleting}
-            className="px-5 py-2.5 rounded-lg bg-red-600 font-semibold hover:bg-red-700 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-medium focus:ring-red-500 disabled:opacity-50 disabled:cursor-wait"
+            onClick={handleLeaveFloor}
+            disabled={isSaving || isUploading || isLeaving || isDeleting} // Disable during other actions
+            className="px-5 py-2.5 rounded-lg bg-yellow-600 text-white font-semibold hover:bg-yellow-700 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-medium focus:ring-yellow-500 disabled:opacity-50 disabled:cursor-wait"
           >
-            {isDeleting ? 'Deleting...' : 'Delete Account'}
+            {isLeaving ? 'Leaving...' : 'Leave Floor'}
           </button>
-
+        )}
+        <button
+          type="button"
+          onClick={handleDeleteAccount}
+          disabled={isSaving || isUploading || isLeaving || isDeleting} // Disable if leaving
+          className="px-5 py-2.5 rounded-lg bg-red-600 font-semibold hover:bg-red-700 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-medium focus:ring-red-500 disabled:opacity-50 disabled:cursor-wait"
+        >
+          {isDeleting ? 'Deleting...' : 'Delete Account'}
+        </button>
+        <div className="w-full mt-2 space-y-1">
           {successMessage && (
             <p className="text-sm text-green-400">{successMessage}</p>
           )}
           {errorMessage && (
             <p className="text-sm text-red-400">{errorMessage}</p>
           )}
+          {leaveError && <p className="text-sm text-red-400">{leaveError}</p>}
         </div>
       </div>
     </form>

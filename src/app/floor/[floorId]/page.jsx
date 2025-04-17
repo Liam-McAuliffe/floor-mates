@@ -10,6 +10,8 @@ import {
 } from '@/store/slices/userSlice';
 import ChatInterface from '@/features/chat/components/ChatInterface';
 import { useSession } from 'next-auth/react';
+import InviteModal from '@/features/floors/components/InviteModal';
+import { Share2 } from 'lucide-react';
 
 export default function FloorPage({ params }) {
   const resolvedParams = React.use(params);
@@ -26,6 +28,11 @@ export default function FloorPage({ params }) {
   const [floorDetails, setFloorDetails] = useState(null);
   const [isLoadingFloorDetails, setIsLoadingFloorDetails] = useState(true);
   const [floorDetailsError, setFloorDetailsError] = useState(null);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [inviteCode, setInviteCode] = useState(null);
+  const [inviteCodeError, setInviteCodeError] = useState(null);
+  const [isFetchingCode, setIsFetchingCode] = useState(false);
 
   useEffect(() => {
     if (sessionStatus === 'authenticated' && userStatus === 'idle') {
@@ -97,6 +104,27 @@ export default function FloorPage({ params }) {
     }
   }, [isAuthorized, targetFloorId]);
 
+  const handleOpenInviteModal = async () => {
+    setIsModalOpen(true);
+    setInviteCode(null); // Reset previous code
+    setInviteCodeError(null);
+    setIsFetchingCode(true);
+
+    try {
+      const response = await fetch(`/api/floors/${targetFloorId}/invite-code`);
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch invite code');
+      }
+      setInviteCode(data.inviteCode);
+    } catch (err) {
+      console.error('Error fetching invite code:', err);
+      setInviteCodeError(err.message);
+    } finally {
+      setIsFetchingCode(false);
+    }
+  };
+
   const isLoading =
     isLoadingUserProfile || (isAuthorized && isLoadingFloorDetails);
 
@@ -154,18 +182,37 @@ export default function FloorPage({ params }) {
     : `Floor ${targetFloorId}`;
 
   return (
-    <main className="flex flex-col h-full">
-      <div className="p-6 border-b border-light/30">
-        <h1 className="text-3xl font-bold text-white">
-          {isLoadingFloorDetails
-            ? `Loading Floor ${targetFloorId}...`
-            : `${displayFloorName}`}
-        </h1>
-      </div>
+    <>
+      <main className="flex flex-col h-full">
+        <div className="p-6 border-b border-light/30 flex justify-between items-center">
+          <h1 className="text-3xl font-bold text-white">
+            {isLoadingFloorDetails
+              ? `Loading Floor ${targetFloorId}...`
+              : `${displayFloorName}`}
+          </h1>
+          {isAuthorized && (
+            <button
+              onClick={handleOpenInviteModal}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-brand text-white text-sm font-medium hover:bg-opacity-85 transition"
+              title="Invite others to this floor"
+            >
+              <Share2 size={16} />
+              Invite
+            </button>
+          )}
+        </div>
 
-      <div className="flex-grow min-h-0">
-        <ChatInterface />
-      </div>
-    </main>
+        <div className="flex-grow min-h-0">
+          <ChatInterface />
+        </div>
+      </main>
+
+      <InviteModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        inviteCode={isFetchingCode ? null : inviteCode}
+        floorId={targetFloorId}
+      />
+    </>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { useRouter } from 'next/navigation';
 import { userJoinedFloor } from '@/store/slices/userSlice';
@@ -13,6 +14,15 @@ export default function JoinFloorForm() {
 
   const dispatch = useDispatch();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const codeFromUrl = searchParams.get('code');
+    if (codeFromUrl && codeFromUrl.length === 6) {
+      console.log('[JoinFloorForm] Pre-filling code from URL:', codeFromUrl);
+      setJoinCode(codeFromUrl);
+    }
+  }, [searchParams]);
 
   const handleInputChange = (event) => {
     setJoinCode(event.target.value.slice(0, 6));
