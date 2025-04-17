@@ -9,8 +9,6 @@ import {
   fetchUserProfile,
 } from '@/store/slices/userSlice';
 import ProfileEditForm from '@/features/profile/components/ProfileEditForm';
-import JoinFloorForm from '@/features/floors/components/JoinFloorForm';
-import Link from 'next/link';
 
 export default function ProfilePage() {
   const { status: sessionStatus } = useSession();
@@ -32,12 +30,6 @@ export default function ProfilePage() {
       setError(null);
     }
   }, [sessionStatus, userStatus, dispatch]);
-
-  const hasFloor = !!(
-    userProfile?.floorId || userProfile?.floorMemberships?.length > 0
-  );
-  const currentFloorId =
-    userProfile?.floorId || userProfile?.floorMemberships?.[0]?.floorId;
 
   if (userStatus === 'loading' || sessionStatus === 'loading') {
     return (
@@ -71,26 +63,6 @@ export default function ProfilePage() {
         <div>
           <h1 className="text-3xl font-bold text-white mb-4">Edit Profile</h1>
           <ProfileEditForm initialData={userProfile} />
-        </div>
-
-        <hr className="border-light/30" />
-
-        <div>
-          {hasFloor ? (
-            <div className="text-center p-4 bg-medium rounded-lg border border-light/50">
-              <p className="text-white/80 mb-2">
-                You are currently a member of a floor.
-              </p>
-              <Link
-                href={`/floor/${currentFloorId}`}
-                className="inline-block px-4 py-2 rounded bg-brand text-white font-semibold hover:bg-opacity-85 transition"
-              >
-                Go to My Floor Chat
-              </Link>
-            </div>
-          ) : (
-            <JoinFloorForm />
-          )}
         </div>
       </main>
     );

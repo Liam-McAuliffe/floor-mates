@@ -30,6 +30,12 @@ const Sidebar = () => {
       href: `/floor/${userFloorId}`,
       icon: MessageSquare,
     };
+  } else {
+    floorLink = {
+      name: 'Join a Floor',
+      href: '/floor/join',
+      icon: MessageSquare,
+    };
   }
 
   const navLinks = floorLink ? [...baseNavLinks, floorLink] : baseNavLinks;
