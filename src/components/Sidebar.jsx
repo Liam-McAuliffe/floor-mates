@@ -8,6 +8,7 @@ import { selectUserProfile } from '@/store/slices/userSlice';
 import { Home, User, MessageSquare, LayoutList } from 'lucide-react';
 import LogoutButton from '@/features/auth/components/LogOutButton';
 import Image from 'next/image';
+import Logo from './Logo';
 
 const Sidebar = () => {
   const pathname = usePathname();
@@ -55,8 +56,9 @@ const Sidebar = () => {
       <div className="mb-10">
         <Link
           href="/"
-          className="text-white text-2xl font-bold hover:text-white/80 transition-colors"
+          className="text-white text-2xl font-bold hover:text-white/80 transition-colors flex items-center"
         >
+          <Logo className="w-12 h-12 border-1 rounded m-2" />
           FloorMates
         </Link>
       </div>
