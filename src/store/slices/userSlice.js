@@ -54,6 +54,20 @@ const userSlice = createSlice({
       state.status = 'succeeded';
       state.error = null;
     },
+    userJoinedFloor: (state, action) => {
+      if (state.data && action.payload?.floorId) {
+        console.log(
+          '[userSlice] Updating user floor membership with floorId:',
+          action.payload.floorId
+        );
+        state.data.floorId = action.payload.floorId;
+        state.status = 'succeeded';
+      } else {
+        console.warn(
+          '[userSlice] userJoinedFloor called but user data or floorId missing.'
+        );
+      }
+    },
   },
 
   extraReducers: (builder) => {
@@ -75,7 +89,8 @@ const userSlice = createSlice({
   },
 });
 
-export const { clearUser, userProfileUpdated } = userSlice.actions;
+export const { clearUser, userProfileUpdated, userJoinedFloor } =
+  userSlice.actions;
 
 export const selectUserProfile = (state) => state.user.data;
 export const selectUserStatus = (state) => state.user.status;

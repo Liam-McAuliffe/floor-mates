@@ -15,17 +15,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user?.id) {
         token.id = user.id;
         token.role = user.role;
-      } else if (token?.email && (!token.id || !token.role)) {
+      }
+      if (token?.id) {
         try {
           const dbUser = await prisma.user.findUnique({
-            where: { email: token.email },
+            where: { id: token.id },
+            select: { role: true },
           });
           if (dbUser) {
-            token.id = dbUser.id;
             token.role = dbUser.role;
+          } else {
+            console.warn(
+              `[Auth JWT Callback] User ${token.id} not found in DB.`
+            );
           }
-        } catch (_) {}
+        } catch (error) {
+          console.error(
+            '[Auth JWT Callback] Error refreshing user role:',
+            error
+          );
+        }
       }
+
       return token;
     },
 

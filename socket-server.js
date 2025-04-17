@@ -28,41 +28,42 @@ const io = new Server(httpServer, {
 console.log(`Socket server allowing connections from: ${NEXT_APP_URL}`);
 
 io.use(async (socket, next) => {
-  const token = socket.handshake.auth.token;
+  const authData = socket.handshake.auth;
+  const userId = authData?.userId;
+
   console.log(
-    '[Socket Auth] Attempting auth with token:',
-    token ? 'Token Present' : 'No Token'
+    '[Socket Auth - TEMP] Attempting auth with data:',
+    JSON.stringify(authData)
   );
 
-  if (!token || !JWT_SECRET) {
+  if (!JWT_SECRET) {
     console.error('[Socket Auth] Failed: No token or JWT_SECRET missing.');
     return next(
       new Error('Authentication error: Token missing or server misconfigured.')
     );
   }
 
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const userId = decoded.sub || decoded.id;
-    if (!userId) {
-      throw new Error('User ID (`sub` or `id`) not found in token payload.');
-    }
+  if (!userId) {
+    console.error('[Socket Auth - TEMP] Failed: No userId provided.');
+    return next(new Error('Authentication error: Missing userId.'));
+  }
 
+  try {
+    console.log(`[Socket Auth - TEMP] Looking up user: ${userId}`);
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
-        floorMemberships: {
+        memberships: {
           select: { floorId: true },
           take: 1,
         },
       },
     });
-
     if (!user) {
       throw new Error(`User ${userId} not found in database.`);
     }
 
-    const floorId = user.floorMemberships?.[0]?.floorId;
+    const floorId = user.memberships?.[0]?.floorId;
 
     if (!floorId) {
       console.warn(

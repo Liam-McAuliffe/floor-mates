@@ -18,6 +18,8 @@ export default function ChatInterface() {
   const [error, setError] = useState(null);
   const currentUser = useSelector(selectUserProfile);
 
+  const messagesEndRef = useRef(null);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -26,18 +28,35 @@ export default function ChatInterface() {
     setError(null);
     console.log('[ChatInterface] Attempting to connect to socket server...');
 
-    const session = await getSession();
-    const token = session?.accessToken;
+    let authData = null;
+    try {
+      const response = await fetch('/api/auth/socket-token');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.error ||
+            `Failed to get socket auth data (${response.status})`
+        );
+      }
+      authData = await response.json();
 
-    if (!token) {
-      setError('Authentication error: Token missing.');
+      if (!authData?.userId) {
+        throw new Error('Invalid auth data received from API.');
+      }
+      console.log(
+        '[ChatInterface] Auth data received, connecting to socket server...'
+      );
+    } catch (fetchError) {
+      console.error(
+        '[ChatInterface] Failed to fetch socket auth data:',
+        fetchError
+      );
+      setError(`Authentication error: ${fetchError.message}`);
       return;
     }
 
     const newSocket = io(SOCKET_SERVER_URL, {
-      auth: {
-        token,
-      },
+      auth: authData,
       reconnectionAttempts: 5,
       reconnectionDelay: 5000,
     });
@@ -52,7 +71,6 @@ export default function ChatInterface() {
     newSocket.on('disconnect', (reason) => {
       console.log(`[ChatInterface] Disconnected from socket: ${reason}`);
       setIsConnected(false);
-      setSocket(null);
       if (reason !== 'io client disconnect') {
         setError('Disconnected from server. Please try again later.');
       }
@@ -82,19 +100,19 @@ export default function ChatInterface() {
         setError(null);
       }, 5000);
     });
-
-    return () => {
-      console.log('[ChatInterface] Cleaning up socket connection...');
-      newSocket?.disconnect();
-      setIsConnected(false);
-      setSocket(null);
-    };
   }, []);
 
   useEffect(() => {
-    const cleanup = connectSocket();
+    connectSocket();
     return () => {
-      cleanup();
+      console.log('[ChatInterface] useEffect cleanup: Disconnecting socket...');
+      setSocket((currentSocket) => {
+        if (currentSocket) {
+          currentSocket.disconnect();
+        }
+        return null;
+      });
+      setIsConnected(false);
     };
   }, [connectSocket]);
 

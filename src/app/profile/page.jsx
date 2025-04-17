@@ -2,43 +2,44 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import { useSelector, useDispatch } from 'react-redux';
+import {
+  selectUserProfile,
+  selectUserStatus,
+  fetchUserProfile,
+} from '@/store/slices/userSlice';
 import ProfileEditForm from '@/features/profile/components/ProfileEditForm';
+import JoinFloorForm from '@/features/floors/components/JoinFloorForm';
+import Link from 'next/link';
 
 export default function ProfilePage() {
-  const { data: session, status } = useSession();
-  const [userProfile, setUserProfile] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { status: sessionStatus } = useSession();
+  const dispatch = useDispatch();
+  const userProfile = useSelector(selectUserProfile);
+  const userStatus = useSelector(selectUserStatus);
+
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (status === 'authenticated') {
-      setIsLoading(true);
-      fetch('/api/user/profile')
-        .then((res) => {
-          if (!res.ok) {
-            throw new Error(`Failed to fetch profile (${res.status})`);
-          }
-          return res.json();
-        })
-        .then((data) => {
-          setUserProfile(data);
-          setError(null);
-        })
+    if (sessionStatus === 'authenticated' && userStatus === 'idle') {
+      dispatch(fetchUserProfile())
+        .unwrap()
         .catch((err) => {
-          console.error('Failed to fetch user profile:', err);
-          setError(err.message);
-          setUserProfile(null);
-        })
-        .finally(() => {
-          setIsLoading(false);
+          console.error('Failed to fetch user profile on mount:', err);
+          setError(err.message || 'Failed to load profile');
         });
-    } else if (status === 'unauthenticated') {
-      setIsLoading(false);
-      setUserProfile(null);
+    } else if (sessionStatus === 'unauthenticated') {
+      setError(null);
     }
-  }, [status]);
+  }, [sessionStatus, userStatus, dispatch]);
 
-  if (isLoading || status === 'loading') {
+  const hasFloor = !!(
+    userProfile?.floorId || userProfile?.floorMemberships?.length > 0
+  );
+  const currentFloorId =
+    userProfile?.floorId || userProfile?.floorMemberships?.[0]?.floorId;
+
+  if (userStatus === 'loading' || sessionStatus === 'loading') {
     return (
       <main className="p-6">
         <h1 className="text-3xl font-bold text-white mb-6">My Profile</h1>
@@ -47,7 +48,7 @@ export default function ProfilePage() {
     );
   }
 
-  if (error) {
+  if (userStatus === 'failed' && error) {
     return (
       <main className="p-6">
         <h1 className="text-3xl font-bold text-white mb-4">My Profile</h1>
@@ -56,19 +57,48 @@ export default function ProfilePage() {
     );
   }
 
-  if (status === 'authenticated' && userProfile) {
+  if (sessionStatus === 'unauthenticated') {
     return (
-      <main className="p-6 space-y-6">
-        <h1 className="text-3xl font-bold text-white">Edit Profile</h1>
+      <main className="p-6">
+        <p>Please log in to view your profile.</p>
+      </main>
+    );
+  }
 
-        <ProfileEditForm initialData={userProfile} />
+  if (sessionStatus === 'authenticated' && userProfile) {
+    return (
+      <main className="p-6 space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-4">Edit Profile</h1>
+          <ProfileEditForm initialData={userProfile} />
+        </div>
+
+        <hr className="border-light/30" />
+
+        <div>
+          {hasFloor ? (
+            <div className="text-center p-4 bg-medium rounded-lg border border-light/50">
+              <p className="text-white/80 mb-2">
+                You are currently a member of a floor.
+              </p>
+              <Link
+                href={`/floor/${currentFloorId}`}
+                className="inline-block px-4 py-2 rounded bg-brand text-white font-semibold hover:bg-opacity-85 transition"
+              >
+                Go to My Floor Chat
+              </Link>
+            </div>
+          ) : (
+            <JoinFloorForm />
+          )}
+        </div>
       </main>
     );
   }
 
   return (
     <main className="p-6">
-      <p>Please log in.</p>
+      <p>Could not load profile information.</p>
     </main>
   );
 }

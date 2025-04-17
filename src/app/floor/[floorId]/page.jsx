@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import {
   selectUserProfile,
@@ -11,7 +11,8 @@ import ChatInterface from '@/features/chat/components/ChatInterface';
 import { useSession } from 'next-auth/react';
 
 export default function FloorPage({ params }) {
-  const { floorId: targetFloorId } = params;
+  const resolvedParams = React.use(params);
+  const targetFloorId = resolvedParams?.floorId;
   const dispatch = useDispatch();
   const userProfile = useSelector(selectUserProfile);
   const userStatus = useSelector(selectUserStatus);
