@@ -18,11 +18,11 @@ export default function ChatInterface() {
   const [error, setError] = useState(null);
   const currentUser = useSelector(selectUserProfile);
 
-  const messagesEndRef = useRef(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [historyError, setHistoryError] = useState(null);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  const messagesEndRef = useRef(null);
+  const initialHistoryFetched = useRef(false);
 
   const connectSocket = useCallback(async () => {
     setError(null);
@@ -116,6 +116,64 @@ export default function ChatInterface() {
     };
   }, [connectSocket]);
 
+  useEffect(() => {
+    if (isConnected && currentUser?.id && !initialHistoryFetched.current) {
+      const fetchHistory = async () => {
+        if (!currentUser.floorId) {
+          console.warn(
+            '[ChatInterface] Cannot fetch history: User has no floorId.'
+          );
+          setHistoryError('Could not determine your floor to fetch history.');
+          setIsLoadingHistory(false);
+          return;
+        }
+
+        console.log(
+          `[ChatInterface] Fetching history for floor ${currentUser.floorId}...`
+        );
+        setIsLoadingHistory(true);
+        setHistoryError(null);
+        initialHistoryFetched.current = true;
+        try {
+          const response = await fetch(
+            `/api/floors/${currentUser.floorId}/chat/history`
+          );
+          const historyMessages = await response.json();
+
+          if (!response.ok) {
+            throw new Error(
+              historyMessages.error ||
+                `Failed to fetch history (${response.status})`
+            );
+          }
+
+          console.log(
+            `[ChatInterface] Received ${historyMessages.length} historical messages.`
+          );
+          setMessages((prevMessages) => {
+            const messageIds = new Set(prevMessages.map((m) => m.id));
+            const uniqueHistory = historyMessages.filter(
+              (m) => !messageIds.has(m.id)
+            );
+            return [...uniqueHistory, ...prevMessages];
+          });
+        } catch (err) {
+          console.error('[ChatInterface] Failed to fetch chat history:', err);
+          setHistoryError(err.message || 'Could not load message history.');
+          initialHistoryFetched.current = false;
+        } finally {
+          setIsLoadingHistory(false);
+        }
+      };
+
+      fetchHistory();
+    }
+  }, [isConnected, currentUser, currentUser?.floorId]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
   const handleSendMessage = (event) => {
     event.preventDefault();
     const messageContent = inputValue.trim();
@@ -141,54 +199,78 @@ export default function ChatInterface() {
           <span className="text-red-400">Disconnected</span>
         )}
         {error && <span className="ml-4 text-red-400">{error}</span>}
+        {/* Add history status */}
+        {isLoadingHistory && (
+          <span className="ml-4 text-yellow-400 animate-pulse">
+            Loading history...
+          </span>
+        )}
+        {historyError && (
+          <span className="ml-4 text-red-400">
+            History Error: {historyError}
+          </span>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex items-start gap-3 ${
-              msg.userId === currentUser?.id ? 'justify-end' : ''
-            }`}
-          >
-            {msg.userId !== currentUser?.id && (
-              <Image
-                src={msg.user?.image || '@/default-avatar.svg'}
-                alt={msg.user?.name || 'User'}
-                width={32}
-                height={32}
-                className="rounded-full mt-1 flex-shrink-0"
-              />
-            )}
-
+        {/* Conditionally render a loading indicator for history */}
+        {isLoadingHistory && (
+          <div className="text-center text-white/50 py-4">
+            Loading messages...
+          </div>
+        )}
+        {/* Existing message mapping */}
+        {!isLoadingHistory &&
+          messages.map((msg) => (
             <div
-              className={`p-3 rounded-lg max-w-xs sm:max-w-md md:max-w-lg ${
-                msg.userId === currentUser?.id
-                  ? 'bg-brand text-white'
-                  : 'bg-dark text-accent'
+              key={msg.id}
+              className={`flex items-start gap-3 ${
+                msg.userId === currentUser?.id ? 'justify-end' : ''
               }`}
             >
               {msg.userId !== currentUser?.id && (
-                <p className="text-xs font-semibold text-brand mb-1">
-                  {msg.user?.name || 'Unknown User'}
-                </p>
+                <Image
+                  src={msg.user?.image || '@/default-avatar.svg'}
+                  alt={msg.user?.name || 'User'}
+                  width={32}
+                  height={32}
+                  className="rounded-full mt-1 flex-shrink-0"
+                />
               )}
-              <p className="text-sm break-words">{msg.content}</p>
-              <p
-                className={`text-xs mt-1 opacity-70 ${
+
+              <div
+                className={`p-3 rounded-lg max-w-xs sm:max-w-md md:max-w-lg ${
                   msg.userId === currentUser?.id
-                    ? 'text-white/70'
-                    : 'text-accent/70'
+                    ? 'bg-brand text-white'
+                    : 'bg-dark text-accent'
                 }`}
               >
-                {new Date(msg.createdAt).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </p>
+                {msg.userId !== currentUser?.id && (
+                  <p className="text-xs font-semibold text-brand mb-1">
+                    {msg.user?.name || 'Unknown User'}
+                  </p>
+                )}
+                <p className="text-sm break-words">{msg.content}</p>
+                <p
+                  className={`text-xs mt-1 opacity-70 ${
+                    msg.userId === currentUser?.id
+                      ? 'text-white/70'
+                      : 'text-accent/70'
+                  }`}
+                >
+                  {new Date(msg.createdAt).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </p>
+              </div>
             </div>
+          ))}
+        {!isLoadingHistory && messages.length === 0 && (
+          <div className="text-center text-white/50 py-4">
+            No messages yet. Start the conversation!
           </div>
-        ))}
+        )}
         <div ref={messagesEndRef} />
       </div>
 
