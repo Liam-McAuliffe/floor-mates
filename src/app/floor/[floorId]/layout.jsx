@@ -1,4 +1,3 @@
-// src/app/floor/[floorId]/page.jsx
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -8,34 +7,33 @@ import {
   selectUserStatus,
   fetchUserProfile,
 } from '@/store/slices/userSlice';
-import ChatInterface from '@/features/chat/components/ChatInterface';
 import { useSession } from 'next-auth/react';
 import InviteModal from '@/features/floors/components/InviteModal';
 import { Share2 } from 'lucide-react';
-import CreatePostForm from '@/features/posts/components/CreatePostForm';
-import FloorPostsList from '@/features/posts/components/FloorPostsList';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
-export default function FloorPage({ params }) {
+export default function FloorLayout({ children, params }) {
   const resolvedParams = React.use(params);
   const targetFloorId = resolvedParams?.floorId;
   const dispatch = useDispatch();
   const userProfile = useSelector(selectUserProfile);
   const userStatus = useSelector(selectUserStatus);
   const { status: sessionStatus } = useSession();
+  const pathname = usePathname();
 
   const [isLoadingUserProfile, setIsLoadingUserProfile] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [accessError, setAccessError] = useState(null);
+
   const [floorDetails, setFloorDetails] = useState(null);
   const [isLoadingFloorDetails, setIsLoadingFloorDetails] = useState(true);
   const [floorDetailsError, setFloorDetailsError] = useState(null);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [inviteCode, setInviteCode] = useState(null);
   const [inviteCodeError, setInviteCodeError] = useState(null);
   const [isFetchingCode, setIsFetchingCode] = useState(false);
-  const [posts, setPosts] = useState([]);
-  const [isLoadingPosts, setIsLoadingPosts] = useState(true);
-  const [postsError, setPostsError] = useState(null);
 
   useEffect(() => {
     if (sessionStatus === 'authenticated' && userStatus === 'idle') {
@@ -43,20 +41,16 @@ export default function FloorPage({ params }) {
       setIsLoadingUserProfile(true);
       return;
     }
-
     if (userStatus === 'loading' || sessionStatus === 'loading') {
       setIsLoadingUserProfile(true);
       return;
     }
-
     setIsLoadingUserProfile(false);
-
     if (userStatus === 'failed') {
       setAccessError('Failed to load user profile data.');
       setIsAuthorized(false);
       return;
     }
-
     if (userStatus === 'succeeded' && userProfile) {
       const userActualFloorId = userProfile.floorId;
       if (userActualFloorId && userActualFloorId === targetFloorId) {
@@ -78,16 +72,13 @@ export default function FloorPage({ params }) {
   }, [userProfile, userStatus, sessionStatus, targetFloorId, dispatch]);
 
   useEffect(() => {
-    if (isAuthorized && targetFloorId) {
+    if (isAuthorized && targetFloorId && !floorDetails) {
       const fetchDetails = async () => {
         setIsLoadingFloorDetails(true);
         setFloorDetailsError(null);
-        setFloorDetails(null);
-
         try {
           const response = await fetch(`/api/floors/${targetFloorId}`);
           const data = await response.json();
-
           if (!response.ok) {
             throw new Error(
               data.error || `Failed to fetch floor details (${response.status})`
@@ -101,53 +92,16 @@ export default function FloorPage({ params }) {
         }
       };
       fetchDetails();
-    } else {
+    } else if (!isAuthorized || !targetFloorId) {
       setIsLoadingFloorDetails(false);
     }
-  }, [isAuthorized, targetFloorId]);
-
-  useEffect(() => {
-    if (isAuthorized && targetFloorId) {
-      const fetchPosts = async () => {
-        setIsLoadingPosts(true);
-        setPostsError(null);
-        setPosts([]);
-
-        try {
-          const response = await fetch(`/api/floors/${targetFloorId}/posts`);
-          const data = await response.json();
-
-          if (!response.ok) {
-            throw new Error(
-              data.error || `Failed to fetch posts (${response.status})`
-            );
-          }
-          setPosts(data);
-        } catch (err) {
-          setPostsError(err.message || 'Could not load posts.');
-        } finally {
-          setIsLoadingPosts(false);
-        }
-      };
-
-      fetchPosts();
-    } else {
-      setIsLoadingPosts(false);
-      setPosts([]);
-      setPostsError(null);
-    }
-  }, [isAuthorized, targetFloorId]);
-
-  const handlePostCreated = (newPost) => {
-    setPosts((prevPosts) => [newPost, ...prevPosts]);
-  };
+  }, [isAuthorized, targetFloorId, floorDetails]);
 
   const handleOpenInviteModal = async () => {
     setIsModalOpen(true);
     setInviteCode(null);
     setInviteCodeError(null);
     setIsFetchingCode(true);
-
     try {
       const response = await fetch(`/api/floors/${targetFloorId}/invite-code`);
       const data = await response.json();
@@ -167,45 +121,33 @@ export default function FloorPage({ params }) {
 
   if (isLoadingPage) {
     return (
-      <main className="p-6">
-        <h1 className="text-2xl font-bold text-white mb-4 animate-pulse">
-          Floor {targetFloorId || '...'}
-        </h1>
-        <p className="text-white/70">Loading floor data...</p>
-      </main>
+      <div className="flex flex-col h-full p-6">
+        <div className="h-10 bg-medium rounded w-1/2 animate-pulse mb-4"></div>
+        <div className="h-8 bg-medium rounded w-1/3 animate-pulse"></div>
+      </div>
     );
   }
 
   if (accessError) {
     return (
-      <main className="p-6">
-        <h1 className="text-2xl font-bold text-white mb-4">
-          Floor {targetFloorId}
-        </h1>
+      <div className="flex flex-col h-full p-6">
+        <h1 className="text-2xl font-bold text-white mb-4">Access Denied</h1>
         <p className="text-red-400">{accessError}</p>
-      </main>
+      </div>
     );
   }
 
   if (isAuthorized && floorDetailsError && !floorDetails) {
     return (
-      <main className="p-6">
+      <div className="flex flex-col h-full p-6">
         <h1 className="text-2xl font-bold text-white mb-4">
-          Error Loading Floor Details
+          Error Loading Floor
         </h1>
         <p className="text-red-400">{floorDetailsError}</p>
-      </main>
-    );
-  }
-
-  if (!isAuthorized) {
-    return (
-      <main className="p-6">
-        <h1 className="text-2xl font-bold text-white mb-4">
-          Floor {targetFloorId}
-        </h1>
-        <p className="text-red-400">You do not have access to this floor.</p>
-      </main>
+        <p className="text-white/70 mt-2">
+          Could not load details for floor {targetFloorId}.
+        </p>
+      </div>
     );
   }
 
@@ -213,41 +155,54 @@ export default function FloorPage({ params }) {
     ? `${floorDetails.buildingName}: ${floorDetails.name}`
     : `Floor ${targetFloorId}`;
 
+  const baseFloorPath = `/floor/${targetFloorId}`;
+  const chatPath = `${baseFloorPath}/chat`;
+  const postsPath = `${baseFloorPath}/posts`;
+
   return (
     <>
-      <main className="flex flex-col h-full overflow-y-auto">
-        <div className="p-4 md:p-6 border-b border-light/30 flex justify-between items-center sticky top-0 bg-dark z-10">
-          <h1 className="text-2xl md:text-3xl font-bold text-white truncate pr-4">
-            {displayFloorName}
-          </h1>
-          {isAuthorized && (
-            <button
-              onClick={handleOpenInviteModal}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-brand text-white text-sm font-medium hover:bg-opacity-85 transition flex-shrink-0"
-              title="Invite others to this floor"
-            >
-              <Share2 size={16} />
-              <span>Invite</span>
-            </button>
-          )}
-        </div>
-
-        <div className="flex-grow p-4 md:p-6 space-y-6">
-          <CreatePostForm
-            floorId={targetFloorId}
-            onPostCreated={handlePostCreated}
-          />
-          <FloorPostsList
-            posts={posts}
-            isLoading={isLoadingPosts}
-            error={postsError}
-          />
-          <hr className="border-light/30 my-6 md:my-8" />
-          <div className="h-[70vh] md:h-[80vh]">
-            <ChatInterface />
+      <div className="flex flex-col h-full">
+        <div className="p-4 md:p-6 border-b border-light/30 flex-shrink-0 bg-dark sticky top-0 z-20">
+          <div className="flex justify-between items-center mb-3">
+            <h1 className="text-2xl md:text-3xl font-bold text-white truncate pr-4">
+              {displayFloorName}
+            </h1>
+            {isAuthorized && (
+              <button
+                onClick={handleOpenInviteModal}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-brand text-white text-sm font-medium hover:bg-opacity-85 transition flex-shrink-0"
+                title="Invite others to this floor"
+              >
+                <Share2 size={16} />
+                <span>Invite</span>
+              </button>
+            )}
           </div>
+          <nav className="flex gap-4">
+            <Link
+              href={postsPath}
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                pathname === postsPath
+                  ? 'bg-brand text-white'
+                  : 'text-white/70 hover:bg-light hover:text-white'
+              }`}
+            >
+              Posts
+            </Link>
+            <Link
+              href={chatPath}
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                pathname === chatPath
+                  ? 'bg-brand text-white'
+                  : 'text-white/70 hover:bg-light hover:text-white'
+              }`}
+            >
+              Chat
+            </Link>
+          </nav>
         </div>
-      </main>
+        <div className="flex-grow overflow-y-auto">{children}</div>
+      </div>
 
       <InviteModal
         isOpen={isModalOpen}
