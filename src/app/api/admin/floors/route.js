@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { auth } from '../../../../../auth'; // Adjust path if needed
+import { auth } from '../../../../../auth';
 import prisma from '@/lib/prisma';
 import { nanoid } from 'nanoid';
-import { isAction } from '@reduxjs/toolkit';
+import { Prisma } from '@prisma/client';
 
 export async function POST(request) {
   const session = await auth();
@@ -107,9 +107,24 @@ export async function POST(request) {
     };
     return NextResponse.json(responsePayload, { status: 201 });
   } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
+      console.warn(
+        `[API /admin/floors] Unique constraint violation: Floor '${name}' in building '${buildingName}' already exists.`
+      );
+      return NextResponse.json(
+        {
+          error: `A floor named "${name}" already exists in building "${buildingName}".`,
+        },
+        { status: 409 }
+      ); // 409 Conflict
+    }
+
     console.error('Error creating floor/invitation code:', error);
     return NextResponse.json(
-      { error: `Database error: ${error.message}` },
+      { error: `Database error: ${error.message || 'Unknown error'}` },
       { status: 500 }
     );
   }

@@ -1,3 +1,4 @@
+// src/app/floor/[floorId]/page.jsx
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -17,77 +18,120 @@ export default function FloorPage({ params }) {
   const userProfile = useSelector(selectUserProfile);
   const userStatus = useSelector(selectUserStatus);
   const { status: sessionStatus } = useSession();
-  const [isLoading, setIsLoading] = useState(true);
+
+  const [isLoadingUserProfile, setIsLoadingUserProfile] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
-  const [error, setError] = useState(null);
+  const [accessError, setAccessError] = useState(null);
+
+  const [floorDetails, setFloorDetails] = useState(null);
+  const [isLoadingFloorDetails, setIsLoadingFloorDetails] = useState(true);
+  const [floorDetailsError, setFloorDetailsError] = useState(null);
 
   useEffect(() => {
     if (sessionStatus === 'authenticated' && userStatus === 'idle') {
-      console.log(
-        '[FloorPage] User profile idle, dispatching fetchUserProfile...'
-      );
       dispatch(fetchUserProfile());
+      setIsLoadingUserProfile(true);
       return;
     }
 
     if (userStatus === 'loading' || sessionStatus === 'loading') {
-      setIsLoading(true);
+      setIsLoadingUserProfile(true);
       return;
     }
 
+    setIsLoadingUserProfile(false);
+
     if (userStatus === 'failed') {
-      setError('Failed to load user profile data.');
-      setIsLoading(false);
+      setAccessError('Failed to load user profile data.');
       setIsAuthorized(false);
       return;
     }
 
     if (userStatus === 'succeeded' && userProfile) {
-      const userActualFloorId =
-        userProfile.floorId || userProfile.floorMemberships?.[0]?.floorId;
-
-      console.log(
-        `[FloorPage] Checking access: URL Floor=${targetFloorId}, User Floor=${userActualFloorId}`
-      );
-
+      const userActualFloorId = userProfile.floorId;
       if (userActualFloorId && userActualFloorId === targetFloorId) {
         setIsAuthorized(true);
-        setError(null);
+        setAccessError(null);
       } else if (userActualFloorId) {
-        setError(
+        setAccessError(
           `Access Denied: You belong to floor ${userActualFloorId}, not ${targetFloorId}.`
         );
         setIsAuthorized(false);
       } else {
-        setError('Access Denied: You are not assigned to any floor.');
+        setAccessError('Access Denied: You are not assigned to any floor.');
         setIsAuthorized(false);
       }
-      setIsLoading(false);
     } else if (sessionStatus === 'unauthenticated') {
-      setError('Please log in.');
-      setIsLoading(false);
+      setAccessError('Please log in.');
       setIsAuthorized(false);
     }
   }, [userProfile, userStatus, sessionStatus, targetFloorId, dispatch]);
+
+  useEffect(() => {
+    if (isAuthorized && targetFloorId) {
+      const fetchDetails = async () => {
+        setIsLoadingFloorDetails(true);
+        setFloorDetailsError(null);
+        setFloorDetails(null);
+
+        try {
+          const response = await fetch(`/api/floors/${targetFloorId}`);
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(
+              data.error || `Failed to fetch floor details (${response.status})`
+            );
+          }
+
+          setFloorDetails(data);
+        } catch (err) {
+          setFloorDetailsError(err.message);
+        } finally {
+          setIsLoadingFloorDetails(false);
+        }
+      };
+      fetchDetails();
+    } else {
+      setIsLoadingFloorDetails(false);
+    }
+  }, [isAuthorized, targetFloorId]);
+
+  const isLoading =
+    isLoadingUserProfile || (isAuthorized && isLoadingFloorDetails);
 
   if (isLoading) {
     return (
       <main className="p-6">
         <h1 className="text-2xl font-bold text-white mb-4">
-          Floor {targetFloorId}
+          Floor {targetFloorId || '...'}
         </h1>
-        <p className="text-white/70">Loading floor access and chat...</p>
+        <p className="text-white/70">Loading floor data...</p>
       </main>
     );
   }
 
-  if (error) {
+  if (accessError) {
     return (
       <main className="p-6">
         <h1 className="text-2xl font-bold text-white mb-4">
           Floor {targetFloorId}
         </h1>
-        <p className="text-red-400">{error}</p>
+        <p className="text-red-400">{accessError}</p>
+      </main>
+    );
+  }
+
+  if (isAuthorized && floorDetailsError) {
+    return (
+      <main className="p-6">
+        <h1 className="text-2xl font-bold text-white mb-4">
+          Error Loading Floor Details
+        </h1>
+        <p className="text-red-400">{floorDetailsError}</p>
+        <div className="flex-grow min-h-0 mt-4">
+          <ChatInterface />
+        </div>
       </main>
     );
   }
@@ -104,17 +148,22 @@ export default function FloorPage({ params }) {
       </main>
     );
   }
+
+  const displayFloorName = floorDetails
+    ? `${floorDetails.buildingName}: ${floorDetails.name}`
+    : `Floor ${targetFloorId}`;
+
   return (
     <main className="flex flex-col h-full">
       <div className="p-6 border-b border-light/30">
         <h1 className="text-3xl font-bold text-white">
-          Welcome to Floor {targetFloorId}
+          {isLoadingFloorDetails
+            ? `Loading Floor ${targetFloorId}...`
+            : `${displayFloorName}`}
         </h1>
       </div>
 
       <div className="flex-grow min-h-0">
-        {' '}
-        {/* Important for flex child with overflow */}
         <ChatInterface />
       </div>
     </main>
