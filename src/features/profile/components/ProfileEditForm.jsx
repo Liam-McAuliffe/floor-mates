@@ -312,7 +312,7 @@ export default function ProfileEditForm({ initialData }) {
       <div className="pt-4 flex flex-wrap items-center gap-4">
         <button
           className="px-5 py-2.5 rounded-lg bg-brand text-white font-semibold hover:bg-opacity-85 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-medium focus:ring-brand disabled:opacity-50 disabled:cursor-wait"
-          disabled={isSaving || isUploading || isLeaving || isDeleting} // Disable if leaving
+          disabled={isSaving || isUploading || isLeaving || isDeleting}
         >
           {buttonText}
         </button>
@@ -320,7 +320,7 @@ export default function ProfileEditForm({ initialData }) {
           <button
             type="button"
             onClick={handleLeaveFloor}
-            disabled={isSaving || isUploading || isLeaving || isDeleting} // Disable during other actions
+            disabled={isSaving || isUploading || isLeaving || isDeleting}
             className="px-5 py-2.5 rounded-lg bg-yellow-600 text-white font-semibold hover:bg-yellow-700 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-medium focus:ring-yellow-500 disabled:opacity-50 disabled:cursor-wait"
           >
             {isLeaving ? 'Leaving...' : 'Leave Floor'}
@@ -329,7 +329,7 @@ export default function ProfileEditForm({ initialData }) {
         <button
           type="button"
           onClick={handleDeleteAccount}
-          disabled={isSaving || isUploading || isLeaving || isDeleting} // Disable if leaving
+          disabled={isSaving || isUploading || isLeaving || isDeleting}
           className="px-5 py-2.5 rounded-lg bg-red-600 font-semibold hover:bg-red-700 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-medium focus:ring-red-500 disabled:opacity-50 disabled:cursor-wait"
         >
           {isDeleting ? 'Deleting...' : 'Delete Account'}
