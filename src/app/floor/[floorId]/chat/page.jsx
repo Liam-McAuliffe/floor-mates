@@ -1,14 +1,11 @@
 'use client';
 
-import React from 'react';
 import ChatInterface from '@/features/chat/components/ChatInterface';
-
+import React from 'react';
 export default function FloorChatPage() {
   return (
-    <main className="flex flex-col h-full">
-      <div className="flex-grow min-h-0">
-        <ChatInterface />
-      </div>
-    </main>
+    <div className="h-full">
+      <ChatInterface />
+    </div>
   );
 }

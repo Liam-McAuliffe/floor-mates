@@ -12,7 +12,11 @@ export default function FloorPostsPage({ params }) {
   const [postsError, setPostsError] = useState(null);
 
   useEffect(() => {
-    if (!targetFloorId) return;
+    if (!targetFloorId) {
+      setIsLoadingPosts(false);
+      setPostsError('Floor ID is missing.');
+      return;
+    }
 
     const fetchPosts = async () => {
       setIsLoadingPosts(true);
@@ -38,19 +42,41 @@ export default function FloorPostsPage({ params }) {
     setPosts((prevPosts) => [newPost, ...prevPosts]);
   };
 
+  const handleDeletePost = (postId) => {
+    setPosts((currentPosts) =>
+      currentPosts.filter((post) => post.id !== postId)
+    );
+  };
+
+  const handleUpdatePost = (updatedPost) => {
+    setPosts((currentPosts) =>
+      currentPosts.map((post) =>
+        post.id === updatedPost.id ? updatedPost : post
+      )
+    );
+  };
+
+  if (!targetFloorId) {
+    return (
+      <main className="p-6">
+        <p className="text-red-500">Error: Could not determine Floor ID.</p>
+      </main>
+    );
+  }
+
   return (
-    <main className="flex flex-col h-full overflow-y-auto">
-      <div className="flex-grow p-4 md:p-6 space-y-6">
-        <CreatePostForm
-          floorId={targetFloorId}
-          onPostCreated={handlePostCreated}
-        />
-        <FloorPostsList
-          posts={posts}
-          isLoading={isLoadingPosts}
-          error={postsError}
-        />
-      </div>
-    </main>
+    <div className="flex-grow p-4 md:p-6 space-y-6">
+      <CreatePostForm
+        floorId={targetFloorId}
+        onPostCreated={handlePostCreated}
+      />
+      <FloorPostsList
+        posts={posts}
+        isLoading={isLoadingPosts}
+        error={postsError}
+        onDeletePost={handleDeletePost}
+        onUpdatePost={handleUpdatePost}
+      />
+    </div>
   );
 }

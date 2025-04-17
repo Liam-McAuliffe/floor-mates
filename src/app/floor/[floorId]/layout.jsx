@@ -14,8 +14,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 export default function FloorLayout({ children, params }) {
-  const resolvedParams = React.use(params);
-  const targetFloorId = resolvedParams?.floorId;
+  const targetFloorId = params?.floorId;
   const dispatch = useDispatch();
   const userProfile = useSelector(selectUserProfile);
   const userStatus = useSelector(selectUserStatus);
@@ -25,11 +24,9 @@ export default function FloorLayout({ children, params }) {
   const [isLoadingUserProfile, setIsLoadingUserProfile] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [accessError, setAccessError] = useState(null);
-
   const [floorDetails, setFloorDetails] = useState(null);
   const [isLoadingFloorDetails, setIsLoadingFloorDetails] = useState(true);
   const [floorDetailsError, setFloorDetailsError] = useState(null);
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [inviteCode, setInviteCode] = useState(null);
   const [inviteCodeError, setInviteCodeError] = useState(null);
@@ -118,7 +115,6 @@ export default function FloorLayout({ children, params }) {
 
   const isLoadingPage =
     isLoadingUserProfile || (isAuthorized && isLoadingFloorDetails);
-
   if (isLoadingPage) {
     return (
       <div className="flex flex-col h-full p-6">
@@ -154,7 +150,6 @@ export default function FloorLayout({ children, params }) {
   const displayFloorName = floorDetails
     ? `${floorDetails.buildingName}: ${floorDetails.name}`
     : `Floor ${targetFloorId}`;
-
   const baseFloorPath = `/floor/${targetFloorId}`;
   const chatPath = `${baseFloorPath}/chat`;
   const postsPath = `${baseFloorPath}/posts`;
@@ -201,7 +196,8 @@ export default function FloorLayout({ children, params }) {
             </Link>
           </nav>
         </div>
-        <div className="flex-grow overflow-y-auto">{children}</div>
+
+        <div className="flex-grow min-h-0">{children}</div>
       </div>
 
       <InviteModal

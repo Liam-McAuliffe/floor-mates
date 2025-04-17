@@ -2,18 +2,17 @@ require('dotenv').config();
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
-const jwt = require('jsonwebtoken');
-const prisma = require('./src/lib/prisma').default;
+// const jwt = require('jsonwebtoken'); // jwt not explicitly used here, can remove if not needed elsewhere
+const prisma = require('./src/lib/prisma').default; // Ensure this path is correct
+const { Prisma } = require('@prisma/client'); // Import Prisma types for error handling
 
 const PORT = process.env.SOCKET_PORT || 3001;
 const NEXT_APP_URL = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-const JWT_SECRET = process.env.NEXTAUTH_SECRET;
+// const JWT_SECRET = process.env.NEXTAUTH_SECRET; // No longer directly used here if only checking userId
 
-if (!JWT_SECRET) {
-  console.error(
-    '*** JWT_SECRET is not defined in .env file. Authentication will fail. ***'
-  );
-}
+// if (!JWT_SECRET) { // Keep if needed for other auth mechanisms
+//   console.error('*** JWT_SECRET is not defined. ***');
+// }
 
 const httpServer = http.createServer();
 
@@ -27,61 +26,56 @@ const io = new Server(httpServer, {
 
 console.log(`Socket server allowing connections from: ${NEXT_APP_URL}`);
 
+// --- Authentication Middleware ---
 io.use(async (socket, next) => {
   const authData = socket.handshake.auth;
   const userId = authData?.userId;
 
   console.log(
-    '[Socket Auth - TEMP] Attempting auth with data:',
+    '[Socket Auth] Attempting auth with data:',
     JSON.stringify(authData)
   );
 
-  if (!JWT_SECRET) {
-    console.error('[Socket Auth] Failed: No token or JWT_SECRET missing.');
-    return next(
-      new Error('Authentication error: Token missing or server misconfigured.')
-    );
-  }
-
   if (!userId) {
-    console.error('[Socket Auth - TEMP] Failed: No userId provided.');
+    console.error('[Socket Auth] Failed: No userId provided.');
     return next(new Error('Authentication error: Missing userId.'));
   }
 
   try {
-    console.log(`[Socket Auth - TEMP] Looking up user: ${userId}`);
+    console.log(`[Socket Auth] Looking up user: ${userId}`);
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: {
-        memberships: {
-          select: { floorId: true },
-          take: 1,
-        },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        role: true,
+        memberships: { select: { floorId: true }, take: 1 },
       },
     });
+
     if (!user) {
       throw new Error(`User ${userId} not found in database.`);
     }
-
     const floorId = user.memberships?.[0]?.floorId;
-
     if (!floorId) {
-      console.warn(
-        `[Socket Auth] User ${user.id} is not assigned to a floor. Disconnecting.`
-      );
-      throw new Error('User is not assigned to a floor.');
+      console.warn(`[Socket Auth] User ${user.id} not assigned to a floor.`);
+      return next(new Error('User is not assigned to a floor.'));
     }
 
+    // Attach user data to the socket object
     socket.user = {
       id: user.id,
       name: user.name || user.email,
       email: user.email,
       image: user.image,
+      role: user.role,
       floorId: floorId,
     };
 
     console.log(
-      `[Socket Auth] User ${socket.user.id} on floor ${socket.user.floorId} authenticated.`
+      `[Socket Auth] User ${socket.user.id} (Role: ${socket.user.role}) on floor ${socket.user.floorId} authenticated.`
     );
     next();
   } catch (error) {
@@ -90,66 +84,60 @@ io.use(async (socket, next) => {
   }
 });
 
+// --- Connection Handler ---
 io.on('connection', (socket) => {
   console.log(
     `[Socket Connection] User connected: ${socket.user?.id} on floor ${socket.user?.floorId} (Socket ID: ${socket.id})`
   );
+
+  // Join the user to their floor's room IF they have user data
+  let floorRoom = null; // Initialize floorRoom for this connection scope
   if (socket.user?.floorId) {
-    const floorRoom = `floor-${socket.user.floorId}`;
+    floorRoom = `floor-${socket.user.floorId}`; // Define floorRoom here
     socket.join(floorRoom);
     console.log(
-      `[Socket Room] User ${socket.user.id} automatically joined room: ${floorRoom}`
+      `[Socket Room] User ${socket.user.id} joined room: ${floorRoom}`
     );
   } else {
     console.warn(
       `[Socket Room] User ${socket.user?.id} connected but has no floorId to join a room.`
     );
+    // Optionally disconnect if no floor ID: socket.disconnect();
   }
 
+  // --- 'send_message' Handler ---
   socket.on('send_message', async (messageContent) => {
-    if (!socket.user || !socket.user.id || !socket.user.floorId) {
+    // Basic check: Ensure user data and floorRoom are available
+    if (!socket.user || !socket.user.id || !socket.user.floorId || !floorRoom) {
       console.error(
-        `[Socket Send Message] Error: User ${socket.id} not fully authenticated or missing floorId.`
+        `[Socket Send Message] Error: User ${socket.id} not fully setup (no user/floorId/room).`
       );
       socket.emit('message_error', {
-        error: 'Authentication issue, cannot send message.',
+        error: 'Cannot send message: user or room context missing.',
       });
       return;
     }
-
     const content = messageContent?.trim();
-    const floorId = socket.user.floorId;
-    const floorRoom = `floor-${floorId}`;
-
     if (!content) {
-      console.log(
-        `[Socket Send Message] User ${socket.user.id} sent empty message.`
-      );
       socket.emit('message_error', { error: 'Cannot send an empty message.' });
       return;
     }
 
     console.log(
-      `[Socket Send Message] Received from ${socket.user.id} for floor ${floorId}: "${content}"`
+      `[Socket Send Message] Received from ${socket.user.id} for ${floorRoom}: "${content}"`
     );
-
     try {
       const message = await prisma.chatMessage.create({
         data: {
           content: content,
-          floorId: floorId,
+          floorId: socket.user.floorId,
           userId: socket.user.id,
         },
-        include: {
-          user: {
-            select: { id: true, name: true, image: true },
-          },
-        },
+        include: { user: { select: { id: true, name: true, image: true } } },
       });
       console.log(
-        `[DB Save] Message from ${socket.user.id} saved to floor ${floorId} (ID: ${message.id})`
+        `[DB Save] Message ${message.id} saved to floor ${socket.user.floorId}`
       );
-
       io.to(floorRoom).emit('receive_message', message);
       console.log(
         `[Socket Broadcast] Broadcasted message ID ${message.id} to room ${floorRoom}`
@@ -159,37 +147,116 @@ io.on('connection', (socket) => {
         '[Socket Send Message] Failed to save or broadcast message:',
         error
       );
-      socket.emit('message_error', {
-        error: 'Failed to send message. Please try again.',
-      });
+      socket.emit('message_error', { error: 'Failed to send message.' });
     }
   });
 
-  socket.on('disconnect', (reason) => {
+  // --- 'delete_message' Handler ---
+  socket.on('delete_message', async (messageId) => {
+    // --- FIX: Define floorRoom within this handler's scope ---
+    const currentFloorRoom = socket.user?.floorId
+      ? `floor-${socket.user.floorId}`
+      : null;
+    // ---------------------------------------------------------
+
+    if (!messageId || typeof messageId !== 'string') {
+      socket.emit('message_error', { error: 'Invalid message ID.' });
+      return;
+    }
+
+    // --- FIX: Use the locally defined currentFloorRoom ---
+    if (
+      !socket.user ||
+      !socket.user.id ||
+      !socket.user.role ||
+      !currentFloorRoom
+    ) {
+      // -------------------------------------------------------
+      console.error(
+        `[Socket Delete] Error: User ${socket.id} not fully setup (no user/role/room).`
+      );
+      socket.emit('message_error', {
+        error: 'Cannot delete message: context missing.',
+      });
+      return;
+    }
+
     console.log(
-      `[Socket Disconnect] User disconnected: ${
-        socket.user?.id || 'Unknown'
-      } (Socket ID: ${socket.id}). Reason: ${reason}`
+      `[Socket Delete] User ${socket.user.id} requested deletion of message ${messageId}`
     );
+    try {
+      const message = await prisma.chatMessage.findUnique({
+        where: { id: messageId },
+        select: { userId: true, floorId: true },
+      });
+      if (!message) {
+        socket.emit('message_error', { error: 'Message not found.' });
+        return;
+      }
+      if (message.floorId !== socket.user.floorId) {
+        socket.emit('message_error', {
+          error: 'Cannot delete message from another floor.',
+        });
+        return;
+      }
+
+      const isAuthor = message.userId === socket.user.id;
+      const isAdminOrRA =
+        socket.user.role === 'admin' || socket.user.role === 'RA';
+      if (!isAuthor && !isAdminOrRA) {
+        socket.emit('message_error', { error: 'Not authorized to delete.' });
+        return;
+      }
+
+      await prisma.chatMessage.delete({ where: { id: messageId } });
+      console.log(
+        `[DB Delete] Message ${messageId} deleted by User ${socket.user.id}`
+      );
+
+      // --- FIX: Use the locally defined currentFloorRoom ---
+      io.to(currentFloorRoom).emit('message_deleted', { messageId: messageId });
+      console.log(
+        `[Socket Broadcast] Broadcasted deletion of ${messageId} to room ${currentFloorRoom}`
+      );
+      // -------------------------------------------------------
+    } catch (error) {
+      console.error(`[Socket Delete] Failed for message ${messageId}:`, error);
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        socket.emit('message_error', { error: 'Message already deleted.' });
+      } else {
+        socket.emit('message_error', { error: 'Failed to delete message.' });
+      }
+    }
   });
 
+  // --- Other handlers ('disconnect', 'error') ---
+  socket.on('disconnect', (reason) => {
+    console.log(
+      `[Socket Disconnect] User ${
+        socket.user?.id || 'Unknown'
+      } disconnected. Reason: ${reason}`
+    );
+  });
   socket.on('error', (error) => {
     console.error(
-      `[Socket Error] User: ${socket.user?.id || 'Unknown'} (Socket ID: ${
-        socket.id
-      }). Error: ${error.message}`
+      `[Socket Error] User: ${socket.user?.id || 'Unknown'}. Error: ${
+        error.message
+      }`
     );
   });
 });
 
+// --- Server Listen & Shutdown ---
 httpServer.listen(PORT, () => {
   console.log(`🚀 Socket.IO server running on port ${PORT}`);
 });
-
 process.on('SIGINT', () => {
-  console.log('SIGINT signal received: closing servers...');
+  console.log('SIGINT received: closing servers...');
   io.close(() => {
-    console.log('Socket.IO server closed.');
+    console.log('Socket.IO closed.');
     httpServer.close(() => {
       console.log('HTTP server closed.');
       prisma.$disconnect().then(() => {
