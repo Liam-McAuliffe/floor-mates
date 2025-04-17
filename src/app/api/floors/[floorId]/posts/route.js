@@ -42,16 +42,34 @@ export async function GET(request, { params }) {
       where: {
         floorId: targetFloorId,
       },
-      orderBy: [{ isPinned: 'desc' }, { createdAt: 'desc' }],
+      orderBy: [
+        { isPinned: 'desc' },
+        { upvoteCount: 'desc' },
+        { createdAt: 'desc' },
+      ],
       take: POSTS_PER_PAGE,
       include: {
         user: {
           select: { id: true, name: true, image: true },
         },
+        upvotes: {
+          where: {
+            userId: userId,
+          },
+          select: {
+            userId: true,
+          },
+        },
       },
     });
 
-    return NextResponse.json(posts);
+    const postsWithUpvoteStatus = posts.map((post) => ({
+      ...post,
+      currentUserHasUpvoted: post.upvotes.length > 0,
+      upvotes: undefined,
+    }));
+
+    return NextResponse.json(postsWithUpvoteStatus);
   } catch (error) {
     return NextResponse.json(
       { error: `Failed to fetch posts: ${error.message}` },

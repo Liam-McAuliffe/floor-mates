@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import CreatePostForm from '@/features/posts/components/CreatePostForm';
 import FloorPostsList from '@/features/posts/components/FloorPostsList';
 
@@ -11,15 +11,15 @@ export default function FloorPostsPage({ params }) {
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   const [postsError, setPostsError] = useState(null);
 
-  useEffect(() => {
-    if (!targetFloorId) {
-      setIsLoadingPosts(false);
-      setPostsError('Floor ID is missing.');
-      return;
-    }
+  const fetchPosts = useCallback(
+    async (showLoading = true) => {
+      if (!targetFloorId) {
+        setIsLoadingPosts(false);
+        setPostsError('Floor ID is missing.');
+        return;
+      }
 
-    const fetchPosts = async () => {
-      setIsLoadingPosts(true);
+      if (showLoading) setIsLoadingPosts(true);
       setPostsError(null);
       try {
         const response = await fetch(`/api/floors/${targetFloorId}/posts`);
@@ -27,19 +27,23 @@ export default function FloorPostsPage({ params }) {
         if (!response.ok) {
           throw new Error(data.error || 'Failed to fetch posts');
         }
-        setPosts(data);
+        setPosts(data); // API now returns sorted posts with upvote status
       } catch (err) {
         setPostsError(err.message || 'Could not load posts.');
       } finally {
-        setIsLoadingPosts(false);
+        if (showLoading) setIsLoadingPosts(false);
       }
-    };
+    },
+    [targetFloorId]
+  );
 
+  useEffect(() => {
     fetchPosts();
-  }, [targetFloorId]);
+  }, [fetchPosts]);
 
   const handlePostCreated = (newPost) => {
     setPosts((prevPosts) => [newPost, ...prevPosts]);
+    fetchPosts(false);
   };
 
   const handleDeletePost = (postId) => {
@@ -56,6 +60,11 @@ export default function FloorPostsPage({ params }) {
     );
   };
 
+  const handlePostsNeedRefresh = useCallback(() => {
+    console.log('Refreshing posts due to upvote change...');
+    fetchPosts(false);
+  }, [fetchPosts]);
+
   if (!targetFloorId) {
     return (
       <main className="p-6">
@@ -71,11 +80,13 @@ export default function FloorPostsPage({ params }) {
         onPostCreated={handlePostCreated}
       />
       <FloorPostsList
+        key={isLoadingPosts ? 'loading' : 'loaded'}
         posts={posts}
         isLoading={isLoadingPosts}
         error={postsError}
         onDeletePost={handleDeletePost}
         onUpdatePost={handleUpdatePost}
+        onPostsNeedRefresh={handlePostsNeedRefresh}
       />
     </div>
   );

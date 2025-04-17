@@ -36,7 +36,21 @@ export async function DELETE(request, { params }) {
     const isAuthor = post.userId === userId;
     const isAdmin = userRole === 'admin';
 
-    if (!isAuthor && !isAdmin) {
+    let isRAOnFloor = false;
+    if (userRole === 'RA') {
+      const membership = await prisma.floorMembership.findUnique({
+        where: {
+          userId_floorId: {
+            userId: userId,
+            floorId: post.floorId,
+          },
+        },
+        select: { userId: true },
+      });
+      isRAOnFloor = !!membership;
+    }
+
+    if (!isAuthor && !isAdmin && !isRAOnFloor) {
       console.warn(
         `[API Post DELETE] User ${userId} (role: ${userRole}) attempted to delete post ${postId} owned by ${post.userId}.`
       );
