@@ -13,6 +13,7 @@ export async function DELETE(request, { params }) {
       { status: 401 }
     );
   }
+
   const userId = session.user.id;
   const userRole = session.user.role;
 
@@ -26,7 +27,7 @@ export async function DELETE(request, { params }) {
   try {
     const post = await prisma.post.findUnique({
       where: { id: postId },
-      select: { userId: true },
+      select: { userId: true, floorId: true },
     });
 
     if (!post) {
@@ -37,7 +38,7 @@ export async function DELETE(request, { params }) {
     const isAdmin = userRole === 'admin';
 
     let isRAOnFloor = false;
-    if (userRole === 'RA') {
+    if (userRole === 'RA' && post.floorId) {
       const membership = await prisma.floorMembership.findUnique({
         where: {
           userId_floorId: {
@@ -51,9 +52,6 @@ export async function DELETE(request, { params }) {
     }
 
     if (!isAuthor && !isAdmin && !isRAOnFloor) {
-      console.warn(
-        `[API Post DELETE] User ${userId} (role: ${userRole}) attempted to delete post ${postId} owned by ${post.userId}.`
-      );
       return NextResponse.json(
         { error: 'You are not authorized to delete this post.' },
         { status: 403 }
@@ -64,10 +62,6 @@ export async function DELETE(request, { params }) {
       where: { id: postId },
     });
 
-    console.log(
-      `[API Post DELETE] Post ${postId} deleted by user ${userId} (role: ${userRole}).`
-    );
-
     return NextResponse.json(
       { message: 'Post deleted successfully' },
       { status: 200 }
@@ -77,12 +71,11 @@ export async function DELETE(request, { params }) {
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === 'P2025'
     ) {
-      return NextResponse.json({ error: 'Post not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Post not found during deletion attempt' },
+        { status: 404 }
+      );
     }
-    console.error(
-      `[API Post DELETE] Error deleting post ${postId} by user ${userId}:`,
-      error
-    );
     return NextResponse.json(
       { error: `Failed to delete post: ${error.message || 'Unknown error'}` },
       { status: 500 }
@@ -97,6 +90,7 @@ export async function PATCH(request, { params }) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
+
   const userId = session.user.id;
 
   if (!postId) {
@@ -130,10 +124,11 @@ export async function PATCH(request, { params }) {
     }
 
     if (Object.keys(updateData).length === 0) {
-      throw new Error('No valid fields provided for update.');
+      throw new Error(
+        'No valid fields provided for update (content or title).'
+      );
     }
   } catch (error) {
-    console.error('[API Posts PATCH] Invalid request body:', error.message);
     return NextResponse.json(
       { error: `Invalid request body: ${error.message}` },
       { status: 400 }
@@ -152,9 +147,6 @@ export async function PATCH(request, { params }) {
 
     const isAuthor = post.userId === userId;
     if (!isAuthor) {
-      console.warn(
-        `[API Post PATCH] User ${userId} attempted to edit post ${postId} owned by ${post.userId}.`
-      );
       return NextResponse.json(
         { error: 'You are not authorized to edit this post.' },
         { status: 403 }
@@ -171,21 +163,22 @@ export async function PATCH(request, { params }) {
       },
     });
 
-    console.log(`[API Post PATCH] Post ${postId} updated by author ${userId}.`);
+    const responsePost = {
+      ...updatedPost,
+    };
 
-    return NextResponse.json(updatedPost, { status: 200 });
+    return NextResponse.json(responsePost, { status: 200 });
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === 'P2025'
     ) {
-      return NextResponse.json({ error: 'Post not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Post not found during update attempt' },
+        { status: 404 }
+      );
     }
 
-    console.error(
-      `[API Post PATCH] Error updating post ${postId} by user ${userId}:`,
-      error
-    );
     return NextResponse.json(
       { error: `Failed to update post: ${error.message || 'Unknown error'}` },
       { status: 500 }

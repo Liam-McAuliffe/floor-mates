@@ -38,9 +38,12 @@ export async function GET(request, { params }) {
       );
     }
 
+    const now = new Date();
+
     const posts = await prisma.post.findMany({
       where: {
         floorId: targetFloorId,
+        OR: [{ expiresAt: { gt: now } }, { isPinned: true }],
       },
       orderBy: [
         { isPinned: 'desc' },
@@ -53,12 +56,8 @@ export async function GET(request, { params }) {
           select: { id: true, name: true, image: true },
         },
         upvotes: {
-          where: {
-            userId: userId,
-          },
-          select: {
-            userId: true,
-          },
+          where: { userId: userId },
+          select: { userId: true },
         },
       },
     });
@@ -71,6 +70,10 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(postsWithUpvoteStatus);
   } catch (error) {
+    console.error(
+      `[API Posts GET] Error fetching posts for floor ${targetFloorId}:`,
+      error
+    );
     return NextResponse.json(
       { error: `Failed to fetch posts: ${error.message}` },
       { status: 500 }
@@ -134,6 +137,9 @@ export async function POST(request, { params }) {
       );
     }
 
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
     const newPost = await prisma.post.create({
       data: {
         title: title ? title.trim() : null,
@@ -142,6 +148,7 @@ export async function POST(request, { params }) {
         userId: userId,
         isPinned: false,
         upvoteCount: 0,
+        expiresAt: expiresAt,
       },
       include: {
         user: {
@@ -150,8 +157,19 @@ export async function POST(request, { params }) {
       },
     });
 
-    return NextResponse.json(newPost, { status: 201 });
+    const responsePost = {
+      ...newPost,
+      currentUserHasUpvoted: false,
+      upvotes: undefined,
+    };
+
+    return NextResponse.json(responsePost, { status: 201 });
   } catch (error) {
+    console.error(
+      `[API Posts POST] Error creating post for floor ${targetFloorId}:`,
+      error
+    );
+    console.error(error);
     return NextResponse.json(
       { error: `Failed to create post: ${error.message}` },
       { status: 500 }
