@@ -113,8 +113,8 @@ export default function CreatePostForm({ floorId, onPostCreated }) {
         <div className="flex flex-col items-start gap-2 pt-2">
           <button
             type="submit"
-            className="px-5 py-2 rounded-lg bg-brand text-white font-semibold hover:bg-opacity-85 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-medium focus:ring-brand disabled:opacity-50 disabled:cursor-wait"
-            disabled={isSubmitting || !content.trim()}
+            className="px-5 py-2 rounded-lg hover:cursor-pointer bg-brand text-white font-semibold hover:bg-opacity-85 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-medium focus:ring-brand disabled:opacity-50 disabled:cursor-wait"
+            disabled={isSubmitting}
           >
             {isSubmitting ? 'Posting...' : 'Create Post'}
           </button>
