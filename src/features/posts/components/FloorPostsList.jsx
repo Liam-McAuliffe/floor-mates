@@ -158,16 +158,49 @@ function PostItem({ post, onDeletePost, onUpdatePost, onUpvoteChanged }) {
       setUpdateError('Content cannot be empty.');
       return;
     }
+
+    setIsUpdating(true);
+    setUpdateError(null);
+    console.log(`[Frontend] Attempting to update post ID: ${post.id}`);
+
     try {
-      setIsUpdating(true);
-      setUpdateError(null);
-      await onUpdatePost(post.id, {
-        title: editedTitle.trim() || null,
-        content: editedContent.trim(),
+      const response = await fetch(`/api/posts/${post.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: editedTitle.trim() || null,
+          content: editedContent.trim(),
+        }),
       });
+
+      console.log(`[Frontend] Update API response status: ${response.status}`);
+
+      if (!response.ok) {
+        let errorMsg = `Failed to update post (${response.status})`;
+        try {
+          const errorData = await response.json();
+          errorMsg = errorData.error || errorMsg;
+        } catch (e) {}
+        console.error(`[Frontend] Update API failed: ${errorMsg}`);
+        throw new Error(errorMsg);
+      }
+
+      const updatedPost = await response.json();
+      console.log(
+        `[Frontend] Update API successful for post ${post.id}. Calling onUpdatePost.`
+      );
+
+      setEditedTitle(updatedPost.title || '');
+      setEditedContent(updatedPost.content);
+
+      onUpdatePost(post.id, updatedPost);
+
       setIsEditing(false);
     } catch (err) {
-      setUpdateError(err.message || 'Failed to update post.');
+      console.error('[Frontend] Error in handleUpdate catch block:', err);
+      setUpdateError(err.message || 'Could not update post.');
     } finally {
       setIsUpdating(false);
     }
@@ -510,7 +543,7 @@ function PostItem({ post, onDeletePost, onUpdatePost, onUpvoteChanged }) {
                   <button
                     type="submit"
                     disabled={isSubmittingComment || !newComment.trim()}
-                    className="px-3 py-1.5 rounded-md bg-brand text-white text-sm font-semibold hover:bg-opacity-85 disabled:opacity-50 flex items-center justify-center w-[60px]" // Fixed width for button
+                    className="px-3 py-1.5 rounded-md bg-brand text-white text-sm font-semibold hover:bg-opacity-85 disabled:opacity-50 disabled:cursor-wait"
                   >
                     {isSubmittingComment ? (
                       <Loader2 size={16} className="animate-spin" />

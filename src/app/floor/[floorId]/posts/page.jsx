@@ -27,7 +27,7 @@ export default function FloorPostsPage({ params }) {
         if (!response.ok) {
           throw new Error(data.error || 'Failed to fetch posts');
         }
-        setPosts(data); // API now returns sorted posts with upvote status
+        setPosts(data);
       } catch (err) {
         setPostsError(err.message || 'Could not load posts.');
       } finally {
@@ -42,28 +42,57 @@ export default function FloorPostsPage({ params }) {
   }, [fetchPosts]);
 
   const handlePostCreated = (newPost) => {
-    setPosts((prevPosts) => [newPost, ...prevPosts]);
-    fetchPosts(false);
+    console.log('[FloorPostsPage] handlePostCreated called with:', newPost);
+    const updatedPosts = [newPost, ...posts];
+    updatedPosts.sort((a, b) => {
+      if (a.isPinned !== b.isPinned) return b.isPinned - a.isPinned;
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+    setPosts(updatedPosts);
   };
 
   const handleDeletePost = (postId) => {
+    console.log(`[FloorPostsPage] handleDeletePost called for ID: ${postId}`);
     setPosts((currentPosts) =>
       currentPosts.filter((post) => post.id !== postId)
     );
   };
 
-  const handleUpdatePost = (updatedPost) => {
-    setPosts((currentPosts) =>
-      currentPosts.map((post) =>
-        post.id === updatedPost.id ? updatedPost : post
-      )
+  const handleUpdatePost = (postId, updatedPostData) => {
+    console.log(
+      `[FloorPostsPage] handleUpdatePost called for ID: ${postId} with:`,
+      updatedPostData
     );
+    const updatedPosts = posts.map((post) =>
+      post.id === postId ? { ...post, ...updatedPostData } : post
+    );
+    setPosts(updatedPosts);
   };
 
-  const handlePostsNeedRefresh = useCallback(() => {
-    console.log('Refreshing posts due to upvote change...');
-    fetchPosts(false);
-  }, [fetchPosts]);
+  const handlePostInteractionRefresh = useCallback(
+    (postId, newCount, newHasUpvoted) => {
+      console.log(
+        `[FloorPostsPage] handlePostInteractionRefresh called for ID: ${postId}`
+      );
+      let updatedPosts = posts.map((p) =>
+        p.id === postId
+          ? {
+              ...p,
+              upvoteCount: newCount,
+              currentUserHasUpvoted: newHasUpvoted,
+            }
+          : p
+      );
+      updatedPosts.sort((a, b) => {
+        if (a.isPinned !== b.isPinned) return b.isPinned - a.isPinned;
+        if (a.upvoteCount !== b.upvoteCount)
+          return b.upvoteCount - a.upvoteCount;
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      });
+      setPosts(updatedPosts);
+    },
+    [posts]
+  );
 
   if (!targetFloorId) {
     return (
@@ -77,16 +106,20 @@ export default function FloorPostsPage({ params }) {
     <div className="flex-grow p-4 md:p-6 space-y-6">
       <CreatePostForm
         floorId={targetFloorId}
-        onPostCreated={handlePostCreated}
+        onPostCreated={handlePostCreated} // Pass the updated handler
       />
       <FloorPostsList
-        key={isLoadingPosts ? 'loading' : 'loaded'}
+        key={
+          isLoadingPosts
+            ? 'loading'
+            : posts.map((p) => p.id + p.upvoteCount).join('-')
+        } // More robust key
         posts={posts}
         isLoading={isLoadingPosts}
         error={postsError}
-        onDeletePost={handleDeletePost}
-        onUpdatePost={handleUpdatePost}
-        onPostsNeedRefresh={handlePostsNeedRefresh}
+        onDeletePost={handleDeletePost} // Pass the updated handler
+        onUpdatePost={handleUpdatePost} // Pass the updated handler
+        onPostsNeedRefresh={handlePostInteractionRefresh} // Pass the renamed/updated handler
       />
     </div>
   );
