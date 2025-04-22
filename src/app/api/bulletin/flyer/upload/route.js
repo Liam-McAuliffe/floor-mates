@@ -11,7 +11,6 @@ export async function POST(request) {
       { status: 401 }
     );
   }
-
   const userId = session.user.id;
   const userRole = session.user.role;
 
@@ -34,36 +33,28 @@ export async function POST(request) {
 
   if (!request.body) {
     return NextResponse.json(
-      { error: 'No file body received' },
+      { error: 'No file body received for upload' },
       { status: 400 }
     );
   }
 
-  let userSchoolId = null;
+  let userSchoolId = 'unknown_school';
   try {
     const membership = await prisma.floorMembership.findFirst({
       where: { userId: userId },
-      include: {
-        floor: { select: { schoolId: true } },
-      },
+      include: { floor: { select: { schoolId: true } } },
     });
-    if (!membership?.floor?.schoolId) {
-      throw new Error('Could not determine user school affiliation.');
+    if (membership?.floor?.schoolId) {
+      userSchoolId = membership.floor.schoolId;
     }
-    userSchoolId = membership.floor.schoolId;
   } catch (dbError) {
     console.error(
-      `[API Flyer Upload] Error fetching user school ID for user ${userId}:`,
+      `[API Flyer Upload] Error fetching school ID for user ${userId}:`,
       dbError
-    );
-    return NextResponse.json(
-      { error: 'Database error determining school.' },
-      { status: 500 }
     );
   }
 
   const blobPath = `bulletin-flyers/${userSchoolId}/${filename}`;
-  console.log(`[API Flyer Upload] Attempting to upload to path: ${blobPath}`);
 
   try {
     const blob = await put(blobPath, request.body, {
@@ -71,19 +62,21 @@ export async function POST(request) {
       addRandomSuffix: true,
     });
 
-    console.log('[API Flyer Upload] Server PUT successful:', blob);
+    console.log('[API /bulletin/flyer/upload] Server PUT successful:', blob);
     return NextResponse.json(blob);
   } catch (error) {
-    console.error('[API Flyer Upload] Error calling server PUT:', error);
-
-    if (error.name === 'BlobError') {
+    console.error(
+      '[API /bulletin/flyer/upload] Error calling server PUT:',
+      error
+    );
+    if (error.message?.includes('size exceeded')) {
       return NextResponse.json(
-        { error: `Blob storage error: ${error.message}` },
-        { status: 500 }
+        { error: `File size exceeds limit.` },
+        { status: 413 }
       );
     }
     return NextResponse.json(
-      { error: `Failed to upload flyer: ${error.message || 'Unknown error'}` },
+      { error: `Failed to upload file: ${error.message || 'Unknown error'}` },
       { status: 500 }
     );
   }

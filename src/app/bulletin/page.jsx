@@ -36,17 +36,14 @@ export default function BulletinPage() {
   useEffect(() => {
     fetchBulletinPosts();
   }, [fetchBulletinPosts]);
-
   const handleDeletePost = useCallback((postId) => {
     setPosts((currentPosts) => currentPosts.filter((p) => p.id !== postId));
   }, []);
-
   const handleUpdatePost = useCallback((postId, updatedData) => {
     setPosts((currentPosts) =>
       currentPosts.map((p) => (p.id === postId ? { ...p, ...updatedData } : p))
     );
   }, []);
-
   const handlePostCreated = (newPost) => {
     setPosts((currentPosts) => [newPost, ...currentPosts]);
     setShowCreateForm(false);
@@ -57,12 +54,14 @@ export default function BulletinPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-3xl font-bold text-white">School Bulletin Board</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl md:text-3xl font-bold text-white">
+          School Bulletin Board
+        </h1>
         {canCreatePost && (
           <button
             onClick={() => setShowCreateForm(!showCreateForm)}
-            className="px-4 py-2 rounded-lg bg-brand text-white font-semibold hover:bg-opacity-85 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-medium focus:ring-brand"
+            className="px-4 py-2 rounded-lg bg-brand text-white font-semibold hover:bg-opacity-85 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-medium focus:ring-brand text-sm md:text-base flex-shrink-0" // Added text size responsiveness
           >
             {showCreateForm ? 'Cancel' : 'Create Post'}
           </button>
@@ -89,7 +88,7 @@ export default function BulletinPage() {
       )}
 
       {!isLoading && !error && posts.length > 0 && (
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {posts.map((post) => (
             <BulletinPostItem
               key={post.id}

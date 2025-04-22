@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { selectUserProfile } from '@/store/slices/userSlice';
 import Image from 'next/image';
-import { upload } from '@vercel/blob/client';
 
 export default function CreateBulletinPostForm({ onPostCreated }) {
   const [title, setTitle] = useState('');
@@ -23,7 +22,6 @@ export default function CreateBulletinPostForm({ onPostCreated }) {
   const [selectedFlyer, setSelectedFlyer] = useState(null);
   const [flyerPreviewUrl, setFlyerPreviewUrl] = useState(null);
   const [isUploadingFlyer, setIsUploadingFlyer] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
 
   const userProfile = useSelector(selectUserProfile);
   const schoolId = userProfile?.schoolId;
@@ -46,6 +44,7 @@ export default function CreateBulletinPostForm({ onPostCreated }) {
       setSelectedFlyer(null);
       return;
     }
+
     setSelectedFlyer(file);
   };
 
@@ -61,18 +60,13 @@ export default function CreateBulletinPostForm({ onPostCreated }) {
     setError(null);
     setSuccessMessage(null);
     setIsUploadingFlyer(false);
-    setUploadProgress(0);
 
     if (!title.trim() || !content.trim()) {
       setError('Title and Content cannot be empty.');
       return;
     }
-
     if (!schoolId) {
       setError('Cannot create post: User school ID is missing.');
-      console.error(
-        '[CreateBulletinPostForm] schoolId is missing from userProfile.'
-      );
       return;
     }
 
@@ -85,20 +79,33 @@ export default function CreateBulletinPostForm({ onPostCreated }) {
       setError(null);
 
       try {
-        const blob = await upload(
+        console.log(`Uploading flyer: ${selectedFlyer.name}`);
+        const response = await fetch(
           `/api/bulletin/flyer/upload?filename=${encodeURIComponent(
             selectedFlyer.name
           )}`,
-          selectedFlyer,
           {
-            access: 'public',
-            handleUploadUrl: '/api/bulletin/flyer/upload',
-            onUploadProgress: (progress) => {
-              setUploadProgress(progress);
-            },
+            method: 'POST',
+            body: selectedFlyer,
+            headers: {},
           }
         );
-        uploadedFlyerUrl = blob.url;
+
+        const blobResult = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            blobResult.error || `Flyer upload failed (${response.status})`
+          );
+        }
+
+        if (!blobResult?.url) {
+          throw new Error(
+            'Flyer upload succeeded but did not return a valid URL.'
+          );
+        }
+
+        uploadedFlyerUrl = blobResult.url;
         console.log('Flyer uploaded successfully:', uploadedFlyerUrl);
       } catch (uploadError) {
         console.error('Flyer upload failed:', uploadError);
@@ -108,10 +115,8 @@ export default function CreateBulletinPostForm({ onPostCreated }) {
         return;
       } finally {
         setIsUploadingFlyer(false);
-        setUploadProgress(100);
       }
     }
-
     const postData = {
       title: title.trim(),
       content: content.trim(),
@@ -126,7 +131,6 @@ export default function CreateBulletinPostForm({ onPostCreated }) {
       recurringDays: eventType === 'RECURRING' ? recurringDays : [],
       flyerImageUrl: uploadedFlyerUrl,
     };
-
     try {
       const response = await fetch('/api/bulletin', {
         method: 'POST',
@@ -145,6 +149,7 @@ export default function CreateBulletinPostForm({ onPostCreated }) {
       }
 
       setSuccessMessage('Bulletin post created successfully!');
+      // Reset form fields
       setTitle('');
       setContent('');
       setEventDate('');
@@ -153,14 +158,17 @@ export default function CreateBulletinPostForm({ onPostCreated }) {
       setEventType('EVENT');
       setRecurringDays([]);
       setSelectedFlyer(null);
+      setFlyerPreviewUrl(null);
+      if (inputFileRef.current) inputFileRef.current.value = '';
 
       if (onPostCreated && typeof onPostCreated === 'function') {
         onPostCreated(responseData);
       }
     } catch (err) {
       console.error('Error creating bulletin post:', err);
-      setError((prevError) =>
-        prevError ? `${prevError} & ${err.message}` : err.message
+      setError(
+        (prevError) =>
+          prevError || err.message || 'An unexpected error occurred.'
       );
       setSuccessMessage(null);
     } finally {
@@ -233,7 +241,6 @@ export default function CreateBulletinPostForm({ onPostCreated }) {
             className="w-full px-3 py-2 bg-dark border border-light rounded-md text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent resize-y min-h-[80px]"
           />
         </div>
-
         <div>
           <label
             htmlFor="bulletinLocation"
@@ -270,7 +277,6 @@ export default function CreateBulletinPostForm({ onPostCreated }) {
             />
           </div>
         )}
-
         {eventType === 'RECURRING' && (
           <div>
             <label className="block text-sm font-medium text-white/70 mb-2">
@@ -351,7 +357,7 @@ export default function CreateBulletinPostForm({ onPostCreated }) {
               disabled={isUploadingFlyer || isSubmitting}
             >
               {isUploadingFlyer
-                ? `Uploading (${uploadProgress}%)`
+                ? 'Uploading...'
                 : selectedFlyer
                 ? 'Change Flyer'
                 : 'Upload Flyer'}
@@ -371,25 +377,18 @@ export default function CreateBulletinPostForm({ onPostCreated }) {
               </span>
             )}
           </div>
-          {isUploadingFlyer && (
-            <div className="w-full bg-light rounded-full h-1.5 mt-2">
-              <div
-                className="bg-brand h-1.5 rounded-full"
-                style={{ width: `${uploadProgress}%` }}
-              ></div>
-            </div>
-          )}
         </div>
+
         <div className="flex flex-col items-start gap-2 pt-2">
           <button
             type="submit"
-            disabled={isSubmitting || !schoolId || isUploadingFlyer}
+            disabled={isSubmitting || isUploadingFlyer || !schoolId}
             className="px-5 py-2 rounded-lg hover:cursor-pointer bg-brand text-white font-semibold hover:bg-opacity-85 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-medium focus:ring-brand disabled:opacity-50 disabled:cursor-wait"
           >
-            {isSubmitting
-              ? isUploadingFlyer
-                ? 'Uploading Flyer...'
-                : 'Creating Post...'
+            {isUploadingFlyer
+              ? 'Uploading Flyer...'
+              : isSubmitting
+              ? 'Creating Post...'
               : 'Create Bulletin Post'}
           </button>
           {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
