@@ -5,7 +5,15 @@ import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useSelector } from 'react-redux';
 import { selectUserProfile } from '@/store/slices/userSlice';
-import { Home, User, MessageSquare, LayoutList } from 'lucide-react';
+
+import {
+  Home,
+  User,
+  MessageSquare,
+  LayoutList,
+  ClipboardList,
+} from 'lucide-react';
+
 import LogoutButton from '@/features/auth/components/LogOutButton';
 import Image from 'next/image';
 import Logo from './Logo';
@@ -18,6 +26,7 @@ const Sidebar = () => {
   const baseNavLinks = [
     { name: 'Home', href: '/', icon: Home },
     { name: 'Profile', href: '/profile', icon: User },
+    { name: 'Bulletin Board', href: '/bulletin', icon: ClipboardList },
   ];
 
   let dynamicFloorLinks = [];
@@ -42,9 +51,26 @@ const Sidebar = () => {
     ];
   }
 
-  const navLinks = [...baseNavLinks, ...dynamicFloorLinks];
+  const navLinks =
+    status === 'authenticated'
+      ? [...baseNavLinks, ...dynamicFloorLinks]
+      : baseNavLinks.filter((link) => link.href === '/');
 
-  if (status === 'loading' || status === 'unauthenticated') {
+  if (status === 'loading') {
+    return (
+      <aside className="w-64 bg-medium p-5 text-white/[0.87] flex flex-col shrink-0 border-r border-light/20 animate-pulse">
+        <div className="mb-10 h-12 bg-dark rounded"></div>
+        <nav className="flex-grow space-y-3">
+          <div className="h-9 bg-dark rounded"></div>
+          <div className="h-9 bg-dark rounded"></div>
+          <div className="h-9 bg-dark rounded"></div>
+        </nav>
+        <div className="mt-auto border-t border-light/30 pt-4 h-10 bg-dark rounded"></div>
+      </aside>
+    );
+  }
+
+  if (status !== 'authenticated') {
     return null;
   }
 
@@ -66,7 +92,9 @@ const Sidebar = () => {
       <nav className="flex-grow">
         <ul>
           {navLinks.map((link) => {
-            const isActive = pathname === link.href;
+            const isActive =
+              pathname === link.href ||
+              (link.href !== '/' && pathname.startsWith(link.href));
 
             return (
               <li key={link.name} className="mb-3">

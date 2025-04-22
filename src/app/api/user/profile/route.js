@@ -86,7 +86,12 @@ export async function GET(request) {
         role: true,
         memberships: {
           select: {
-            floorId: true,
+            floor: {
+              select: {
+                id: true,
+                schoolId: true,
+              },
+            },
           },
           take: 1,
         },
@@ -97,12 +102,22 @@ export async function GET(request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const userProfileData = {
-      ...user,
-      floorId: user.memberships?.[0]?.floorId ?? null,
-    };
-    delete userProfileData.memberships;
+    const floorMembership = user.memberships?.[0];
+    const floorId = floorMembership?.floor?.id ?? null;
+    const schoolId = floorMembership?.floor?.schoolId ?? null;
 
+    const userProfileData = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      image: user.image,
+      major: user.major,
+      role: user.role,
+      floorId: floorId, // Add floorId
+      schoolId: schoolId, // Add schoolId directly
+    };
+
+    console.log('[API User Profile GET] Returning profile:', userProfileData);
     return NextResponse.json(userProfileData);
   } catch (error) {
     console.error('Error fetching user profile with floor:', error);

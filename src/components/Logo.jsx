@@ -15,7 +15,7 @@ const Logo = (props) => (
     <circle cx={65} cy={40} r={12} fill="#6b829e" />
     <path d="M50 80 C 50 60, 80 60, 80 80 Z" fill="#6b829e" />
     <path
-      d="M45 65 Q 50 70, 55 65"
+      d="M45 60 Q 50 65, 55 60"
       stroke="#415a77"
       strokeWidth={3}
       fill="none"

@@ -1,21 +1,49 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function CreateFloorForm() {
   const [floorName, setFloorName] = useState('');
   const [buildingName, setBuildingName] = useState('');
+
+  const [schools, setSchools] = useState([]);
+  const [selectedSchoolId, setSelectedSchoolId] = useState('');
+  const [isLoadingSchools, setIsLoadingSchools] = useState(true);
+  const [schoolsError, setSchoolsError] = useState(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   const [generatedCode, setGeneratedCode] = useState(null);
 
+  useEffect(() => {
+    const fetchSchools = async () => {
+      setIsLoadingSchools(true);
+      setSchoolsError(null);
+      try {
+        const response = await fetch('/api/schools');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to fetch schools');
+        }
+        const data = await response.json();
+        setSchools(data);
+      } catch (error) {
+        console.error('Error fetching schools:', error);
+        setSchoolsError(error.message);
+      } finally {
+        setIsLoadingSchools(false);
+      }
+    };
+
+    fetchSchools();
+  }, []);
+
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!floorName.trim() || !buildingName.trim()) {
-      setErrorMessage('Floor Name and Building Name cannot be empty.');
+    if (!floorName.trim() || !buildingName.trim() || !selectedSchoolId) {
+      setErrorMessage('School, Floor Name, and Building Name are required.');
       setSuccessMessage(null);
       setGeneratedCode(null);
       return;
@@ -35,6 +63,7 @@ export default function CreateFloorForm() {
         body: JSON.stringify({
           name: floorName.trim(),
           buildingName: buildingName.trim(),
+          schoolId: selectedSchoolId,
         }),
       });
 
@@ -46,10 +75,15 @@ export default function CreateFloorForm() {
         );
       }
 
+      const schoolName =
+        schools.find((s) => s.id === data.schoolId)?.name ||
+        `ID ${data.schoolId}`;
+
       setSuccessMessage(`Floor "${data.name}" created successfully!`);
       setGeneratedCode(data.invitationCode);
       setFloorName('');
       setBuildingName('');
+      setSelectedSchoolId('');
     } catch (error) {
       console.error('Error creating floor:', error);
       setErrorMessage(error.message || 'An unexpected error occurred.');
@@ -66,6 +100,40 @@ export default function CreateFloorForm() {
         Create New Floor
       </h2>
       <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label
+            htmlFor="schoolSelect"
+            className="block text-sm font-medium text-white/70 mb-1"
+          >
+            School*
+          </label>
+          <select
+            id="schoolSelect"
+            value={selectedSchoolId}
+            onChange={(e) => setSelectedSchoolId(e.target.value)}
+            className="w-full px-3 py-2 bg-dark border border-light rounded-md text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent disabled:opacity-50"
+            disabled={isLoadingSchools || isLoading || schools.length === 0}
+            required
+          >
+            <option value="" disabled>
+              {isLoadingSchools ? 'Loading schools...' : 'Select a School'}
+            </option>
+            {!isLoadingSchools &&
+              schools.map((school) => (
+                <option key={school.id} value={school.id}>
+                  {school.name}
+                </option>
+              ))}
+          </select>
+          {schoolsError && (
+            <p className="mt-1 text-xs text-red-400">{`Error loading schools: ${schoolsError}`}</p>
+          )}
+          {!isLoadingSchools && !schoolsError && schools.length === 0 && (
+            <p className="mt-1 text-xs text-amber-400">
+              No schools found. Add schools via database/seeding.
+            </p>
+          )}
+        </div>
         <div>
           <label
             htmlFor="floorName"

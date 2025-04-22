@@ -24,9 +24,15 @@ export async function POST(request) {
 
   try {
     body = await request.json();
-    if (!body.name || !body.buildingName) {
+    if (!body.name || !body.buildingName || !body.schoolId) {
       return NextResponse.json(
-        { error: 'Missing required fields: name and buildingName' },
+        { error: 'Missing required fields: name, buildingName, and schoolId' },
+        { status: 400 }
+      );
+    }
+    if (typeof body.schoolId !== 'string') {
+      return NextResponse.json(
+        { error: 'schoolId must be a string' },
         { status: 400 }
       );
     }
@@ -41,9 +47,29 @@ export async function POST(request) {
   const {
     name,
     buildingName,
+    schoolId,
     isCodeSingleUse = false,
     codeExpiresInDays = null,
   } = body;
+
+  try {
+    const schoolExists = await prisma.school.findUnique({
+      where: { id: schoolId },
+      select: { id: true },
+    });
+    if (!schoolExists) {
+      return NextResponse.json(
+        { error: `School with ID ${schoolId} not found.` },
+        { status: 400 }
+      );
+    }
+  } catch (error) {
+    console.error(`Error checking school existence for ID ${schoolId}:`, error);
+    return NextResponse.json(
+      { error: 'Database error checking school existence.' },
+      { status: 500 }
+    );
+  }
 
   let uniqueCode = '';
   let attepts = 0;
@@ -84,6 +110,7 @@ export async function POST(request) {
         data: {
           name: name,
           buildingName: buildingName,
+          schoolId: schoolId,
         },
       });
       await tx.floorInvitationCode.create({
@@ -109,10 +136,11 @@ export async function POST(request) {
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2002'
+      error.code === 'P2002' &&
+      error.meta?.target?.includes('Floor_schoolId_buildingName_name_key')
     ) {
       console.warn(
-        `[API /admin/floors] Unique constraint violation: Floor '${name}' in building '${buildingName}' already exists.`
+        `[API /admin/floors] Unique constraint violation: Floor '${name}' in building '${buildingName}' already exists for school '${schoolId}'.`
       );
       return NextResponse.json(
         {

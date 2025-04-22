@@ -86,13 +86,17 @@ model Floor {
   buildingName String
   createdAt    DateTime @default(now())
 
-  @@unique([buildingName, name])
+  schoolId     String
+  school       School  @relation(fields: [schoolId], references: [id], onDelete: Cascade) 
 
   // Relations
   memberships         FloorMembership[]
   chatMessages        ChatMessage[]
   posts               Post[]
   FloorInvitationCode FloorInvitationCode[]
+
+  @@unique([schoolId, buildingName, name], name: "Floor_schoolId_buildingName_name_key")
+  @@index([schoolId]) // Add an index for querying floors by school
 }
 
 model FloorMembership {
@@ -173,22 +177,37 @@ model PostComment {
   @@index([userId])
 }
 
+enum BulletinEventType {
+  EVENT     // For one-time events
+  RECURRING // For recurring meetings/posts
+}
+
 model BulletinPost {
-  id        String    @id @default(cuid()) // Or @default(uuid()) String
+  id        String   @id @default(cuid())
   title     String
   content   String
-  createdAt DateTime  @default(now())
-  eventDate DateTime?
-  likeCount Int       @default(0) // Keep if needed, update manually or via triggers
+  createdAt DateTime @default(now())
+
+  eventType   BulletinEventType @default(EVENT) // Type of post (default to one-time event)
+  eventDate   DateTime? // Use for the specific date of a one-time EVENT
+  eventTime   String?   // e.g., "7:00 PM - 9:00 PM"
+  location    String?   // e.g., "MSC Ballroom" or "Library Room 201"
+  recurringDays String[]  // For RECURRING: Stores days like ["Monday", "Wednesday"]
+  flyerImageUrl String? // URL for the uploaded flyer image
+
+  likeCount Int      @default(0)
 
   // Relations
-  userId   String? // Nullable if creator user is deleted
-  user     User?             @relation(fields: [userId], references: [id], onDelete: SetNull) // Use SetNull if you want posts to remain if user is deleted
-  likes    BulletinLike[]
-  comments BulletinComment[]
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  likes     BulletinLike[]
+  comments  BulletinComment[]
 
-  @@index([createdAt(sort: Desc)])
+  @@index([schoolId, createdAt(sort: Desc)])
   @@index([userId])
+  @@index([eventType]) // Add index for filtering by type later
 }
 
 model BulletinLike {
@@ -232,4 +251,16 @@ model FloorInvitationCode {
   createdAt   DateTime  @default(now())
 
   @@index([floorId])
+}
+
+
+model School {
+  id           String  @id @default(cuid())
+  name         String  @unique // Ensure school names are unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  floors       Floor[] // Relation to floors within this school
+
+  bulletinPosts BulletinPost[]
 }
