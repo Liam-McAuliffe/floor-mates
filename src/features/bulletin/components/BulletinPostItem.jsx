@@ -16,7 +16,11 @@ import {
   Clock,
   Calendar,
   Repeat,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
+
+const CONTENT_TRUNCATE_LENGTH = 250;
 
 function formatDate(
   dateString,
@@ -26,17 +30,14 @@ function formatDate(
   try {
     const date = new Date(dateString);
     if (isNaN(date.getTime())) {
-      console.warn('Invalid date string received:', dateString);
       return 'Invalid Date';
     }
-
     if (options.dateStyle === 'full' && dateString) {
       const dateOnlyOptions = {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
       };
-
       const dateObj = dateString.includes('T')
         ? new Date(dateString)
         : new Date(dateString + 'T00:00:00Z');
@@ -55,16 +56,13 @@ function BulletinCommentItem({
   currentUserRole,
   postSchoolId,
   onDeleteComment,
-  post, // Needed for correct API path
+  post,
 }) {
   const isCommentAuthor = comment.userId === currentUserId;
   const isAdmin = currentUserRole === 'admin';
-
   const userProfile = useSelector(selectUserProfile);
-
   const isRAOnCorrectSchool =
     currentUserRole === 'RA' && userProfile?.schoolId === postSchoolId;
-
   const canDeleteComment = isCommentAuthor || isAdmin || isRAOnCorrectSchool;
   const [isDeletingComment, setIsDeletingComment] = useState(false);
 
@@ -73,12 +71,9 @@ function BulletinCommentItem({
       return;
     setIsDeletingComment(true);
     try {
-      console.log('Attempting to delete bulletin comment with ID:', comment.id);
       const response = await fetch(
         `/api/bulletin/${post.id}/comments/${comment.id}`,
-        {
-          method: 'DELETE',
-        }
+        { method: 'DELETE' }
       );
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -150,7 +145,6 @@ export default function BulletinPostItem({
   const [editedTitle, setEditedTitle] = useState(initialPost.title);
   const [editedContent, setEditedContent] = useState(initialPost.content);
   const [editedEventType, setEditedEventType] = useState(initialPost.eventType);
-
   const initialEventDate = initialPost.eventDate
     ? new Date(initialPost.eventDate).toISOString().split('T')[0]
     : '';
@@ -186,6 +180,9 @@ export default function BulletinPostItem({
     }
   }, [initialPost, isEditing]);
 
+  // Content expansion state
+  const [isExpanded, setIsExpanded] = useState(false);
+
   const [isLiking, setIsLiking] = useState(false);
   const [likeError, setLikeError] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -202,30 +199,24 @@ export default function BulletinPostItem({
   const isAuthor = post.userId === currentUserId;
   const isRAOnCorrectSchool =
     currentUserRole === 'RA' && currentUserSchoolId === post.schoolId;
-
   const canEditThisPost = isAuthor || isAdmin || isRAOnCorrectSchool;
-
-  const canDeleteThisPost = isAdmin || isRAOnCorrectSchool;
+  const canDeleteThisPost = isAdmin || isRAOnCorrectSchool || isAuthor;
 
   const handleLikeToggle = useCallback(async () => {
     if (isLiking || !currentUserId) return;
-
     setIsLiking(true);
     setLikeError(null);
     const originalLiked = post.currentUserHasLiked;
     const originalCount = post.likeCount;
-
     setPost((currentPost) => ({
       ...currentPost,
       currentUserHasLiked: !originalLiked,
       likeCount: originalLiked ? originalCount - 1 : originalCount + 1,
     }));
-
     try {
       const method = originalLiked ? 'DELETE' : 'POST';
       const response = await fetch(`/api/bulletin/${post.id}/like`, { method });
       const data = await response.json();
-
       if (!response.ok && response.status !== 409) {
         throw new Error(
           data.error ||
@@ -234,13 +225,11 @@ export default function BulletinPostItem({
             })`
         );
       }
-
       setPost((currentPost) => ({
         ...currentPost,
         likeCount: data.likeCount,
         currentUserHasLiked: data.currentUserHasLiked,
       }));
-
       if (onUpdatePost) {
         onUpdatePost(post.id, {
           likeCount: data.likeCount,
@@ -272,7 +261,6 @@ export default function BulletinPostItem({
     if (!canDeleteThisPost || isDeleting) return;
     if (!window.confirm('Are you sure you want to delete this bulletin post?'))
       return;
-
     setIsDeleting(true);
     setDeleteError(null);
     try {
@@ -285,7 +273,6 @@ export default function BulletinPostItem({
           errorData.error || `Failed to delete post (${response.status})`
         );
       }
-      console.log(`Bulletin post ${post.id} deleted.`);
       if (onDeletePost) {
         onDeletePost(post.id);
       }
@@ -327,7 +314,6 @@ export default function BulletinPostItem({
   const handleCommentSubmit = async (e) => {
     e.preventDefault();
     if (!newComment.trim() || isSubmittingComment || !currentUserId) return;
-
     setIsSubmittingComment(true);
     setSubmitCommentError(null);
     try {
@@ -342,7 +328,6 @@ export default function BulletinPostItem({
       }
       setComments((prev) => [...prev, createdComment]);
       setNewComment('');
-
       setPost((currentPost) => ({
         ...currentPost,
         commentCount: (currentPost.commentCount || 0) + 1,
@@ -398,41 +383,33 @@ export default function BulletinPostItem({
       setUpdateError('Title and Content cannot be empty.');
       return;
     }
-
     setIsUpdating(true);
     setUpdateError(null);
-
     const dataToUpdate = {
       title: editedTitle,
       content: editedContent,
       eventType: editedEventType,
       location: editedLocation || null,
       eventTime: editedEventTime || null,
-
       eventDate:
         editedEventType === 'EVENT' && editedEventDate ? editedEventDate : null,
       recurringDays: editedEventType === 'RECURRING' ? editedRecurringDays : [],
     };
-
     try {
       const response = await fetch(`/api/bulletin/${post.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dataToUpdate),
       });
-
       const updatedPostData = await response.json();
-
       if (!response.ok) {
         throw new Error(
           updatedPostData.error || `Failed to update post (${response.status})`
         );
       }
-
       if (onUpdatePost) {
         onUpdatePost(post.id, updatedPostData);
       }
-
       setIsEditing(false);
     } catch (err) {
       console.error('Update post error:', err);
@@ -450,10 +427,11 @@ export default function BulletinPostItem({
   };
 
   const formattedCreatedAt = formatDate(post.createdAt);
+  const isContentLong = post.content.length > CONTENT_TRUNCATE_LENGTH;
 
   return (
-    <div className="p-4 bg-dark rounded-lg shadow border border-light/30 relative space-y-3 overflow-hidden">
-      <div className="flex justify-between items-start">
+    <div className="p-4 bg-dark rounded-lg shadow border border-light/30 relative space-y-3 overflow-hidden h-fit flex flex-col">
+      <div className="flex justify-between items-start flex-shrink-0">
         <div className="flex items-center gap-2 text-sm text-white/70 mb-1 flex-grow min-w-0">
           <Image
             src={post.user?.image || '/default-avatar.svg'}
@@ -476,7 +454,6 @@ export default function BulletinPostItem({
             {formattedCreatedAt}
           </span>
         </div>
-
         {!isEditing && (
           <div className="flex gap-2 items-center flex-shrink-0">
             {canEditThisPost && (
@@ -511,9 +488,8 @@ export default function BulletinPostItem({
           </div>
         )}
       </div>
-
       {isEditing ? (
-        <form onSubmit={handleUpdate} className="space-y-3 pt-2">
+        <form onSubmit={handleUpdate} className="space-y-3 pt-2 flex-grow">
           <div>
             <label
               htmlFor={`eventType-${post.id}`}
@@ -532,7 +508,6 @@ export default function BulletinPostItem({
               <option value="RECURRING">Recurring (Club Meeting, etc.)</option>
             </select>
           </div>
-
           <div>
             <label
               htmlFor={`title-${post.id}`}
@@ -550,7 +525,6 @@ export default function BulletinPostItem({
               disabled={isUpdating}
             />
           </div>
-
           <div>
             <label
               htmlFor={`content-${post.id}`}
@@ -568,7 +542,6 @@ export default function BulletinPostItem({
               disabled={isUpdating}
             />
           </div>
-
           <div>
             <label
               htmlFor={`location-${post.id}`}
@@ -586,7 +559,6 @@ export default function BulletinPostItem({
               disabled={isUpdating}
             />
           </div>
-
           {editedEventType === 'EVENT' && (
             <div>
               <label
@@ -605,7 +577,6 @@ export default function BulletinPostItem({
               />
             </div>
           )}
-
           {editedEventType === 'RECURRING' && (
             <div>
               <label className="block text-sm font-medium text-white/70 mb-2">
@@ -639,7 +610,6 @@ export default function BulletinPostItem({
               </div>
             </div>
           )}
-
           <div>
             <label
               htmlFor={`eventTime-${post.id}`}
@@ -657,9 +627,7 @@ export default function BulletinPostItem({
               disabled={isUpdating}
             />
           </div>
-
           {updateError && <p className="text-xs text-red-400">{updateError}</p>}
-
           <div className="flex gap-2 justify-end pt-2">
             <button
               type="button"
@@ -686,9 +654,9 @@ export default function BulletinPostItem({
           </div>
         </form>
       ) : (
-        <div>
+        <div className="flex flex-col flex-grow">
           {post.flyerImageUrl && (
-            <div className="my-3 max-h-60 overflow-hidden rounded-md border border-light/20 flex justify-center items-center bg-medium">
+            <div className="my-3 max-h-60 overflow-hidden rounded-md border border-light/20 flex justify-center items-center bg-medium flex-shrink-0">
               <Image
                 src={post.flyerImageUrl}
                 alt={`${post.title} Flyer`}
@@ -698,13 +666,24 @@ export default function BulletinPostItem({
               />
             </div>
           )}
-          <h3 className="text-lg font-semibold text-white/90 pt-1">
+          <h3 className="text-lg font-semibold text-white/90 pt-1 flex-shrink-0">
             {post.title}
           </h3>
-          <p className="text-white/80 whitespace-pre-wrap break-words mb-2">
-            {post.content}
-          </p>
-          <div className="space-y-1 text-sm text-white/70 border-t border-light/20 pt-3 mt-3">
+          <div className="text-white/80 whitespace-pre-wrap break-words mb-2 flex-grow min-h-0 overflow-hidden">
+            {isContentLong && !isExpanded
+              ? post.content.substring(0, CONTENT_TRUNCATE_LENGTH) + '...'
+              : post.content}
+          </div>
+          {isContentLong && (
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="text-sm text-brand hover:text-brand/80 flex items-center gap-1 mt-1 mb-2 self-start flex-shrink-0"
+            >
+              {isExpanded ? 'Show Less' : 'Read More'}
+              {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </button>
+          )}
+          <div className="space-y-1 text-sm text-white/70 border-t border-light/20 pt-3 mt-auto flex-shrink-0">
             {post.eventType === 'EVENT' && post.eventDate && (
               <div className="flex items-center gap-2">
                 <Calendar size={14} className="shrink-0 text-amber-400" />
@@ -736,7 +715,7 @@ export default function BulletinPostItem({
               </div>
             )}
           </div>
-          <div className="flex items-center gap-4 text-sm text-white/60 border-b border-light/20 pb-3 mt-3">
+          <div className="flex items-center gap-4 text-sm text-white/60 border-b border-light/20 pb-3 mt-3 flex-shrink-0">
             <button
               onClick={handleLikeToggle}
               disabled={isLiking || !currentUserId}
@@ -771,9 +750,8 @@ export default function BulletinPostItem({
               <p className="text-xs text-red-400 ml-auto">{likeError}</p>
             )}
           </div>
-
           {showComments && (
-            <div className="pt-2 space-y-3">
+            <div className="pt-2 space-y-3 flex-shrink-0">
               {isLoadingComments && (
                 <Loader2
                   size={18}

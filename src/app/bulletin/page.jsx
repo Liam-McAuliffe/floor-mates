@@ -36,6 +36,7 @@ export default function BulletinPage() {
   useEffect(() => {
     fetchBulletinPosts();
   }, [fetchBulletinPosts]);
+
   const handleDeletePost = useCallback((postId) => {
     setPosts((currentPosts) => currentPosts.filter((p) => p.id !== postId));
   }, []);
@@ -61,7 +62,7 @@ export default function BulletinPage() {
         {canCreatePost && (
           <button
             onClick={() => setShowCreateForm(!showCreateForm)}
-            className="px-4 py-2 rounded-lg bg-brand text-white font-semibold hover:bg-opacity-85 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-medium focus:ring-brand text-sm md:text-base flex-shrink-0" // Added text size responsiveness
+            className="px-4 py-2 rounded-lg bg-brand text-white font-semibold hover:bg-opacity-85 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-medium focus:ring-brand text-sm md:text-base flex-shrink-0"
           >
             {showCreateForm ? 'Cancel' : 'Create Post'}
           </button>
@@ -87,15 +88,17 @@ export default function BulletinPage() {
         </p>
       )}
 
+      {/* Masonry-like Layout using CSS Columns */}
       {!isLoading && !error && posts.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+        <div className="columns-1 md:columns-2 lg:columns-3 gap-4 md:gap-6 space-y-4 md:space-y-6">
           {posts.map((post) => (
-            <BulletinPostItem
-              key={post.id}
-              post={post}
-              onDeletePost={handleDeletePost}
-              onUpdatePost={handleUpdatePost}
-            />
+            <div key={post.id} className="break-inside-avoid mb-4 md:mb-6">
+              <BulletinPostItem
+                post={post}
+                onDeletePost={handleDeletePost}
+                onUpdatePost={handleUpdatePost}
+              />
+            </div>
           ))}
         </div>
       )}
