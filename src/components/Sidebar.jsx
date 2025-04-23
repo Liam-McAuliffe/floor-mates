@@ -12,9 +12,11 @@ import {
   MessageSquare,
   LayoutList,
   ClipboardList,
+  Shield,
 } from 'lucide-react';
 
 import LogoutButton from '@/features/auth/components/LogOutButton';
+import NotificationBell from '@/features/notifications/components/NotificationBell';
 import Image from 'next/image';
 import Logo from './Logo';
 
@@ -51,11 +53,15 @@ const Sidebar = () => {
     ];
   }
 
-  const navLinks =
-    status === 'authenticated'
-      ? [...baseNavLinks, ...dynamicFloorLinks]
-      : baseNavLinks.filter((link) => link.href === '/');
-
+  let navLinks = [];
+  if (status === 'authenticated') {
+    navLinks = [...baseNavLinks, ...dynamicFloorLinks];
+    if (userProfile?.role === 'admin') {
+      navLinks.push({ name: 'Admin Dashboard', href: '/admin', icon: Shield });
+    }
+  } else {
+    navLinks = baseNavLinks.filter((link) => link.href === '/');
+  }
   if (status === 'loading') {
     return (
       <aside className="w-64 bg-medium p-5 text-white/[0.87] flex flex-col shrink-0 border-r border-light/20 animate-pulse">
@@ -95,7 +101,6 @@ const Sidebar = () => {
             const isActive =
               pathname === link.href ||
               (link.href !== '/' && pathname.startsWith(link.href));
-
             return (
               <li key={link.name} className="mb-3">
                 <Link
@@ -124,6 +129,9 @@ const Sidebar = () => {
               width={28}
               height={28}
               className="rounded-full mr-2 bg-dark"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
             />
           ) : (
             <div className="w-7 h-7 rounded-full mr-2 bg-dark border border-light flex items-center justify-center text-xs text-white/50">
@@ -137,6 +145,10 @@ const Sidebar = () => {
           >
             {displayName}
           </span>
+
+          <div className="mr-2">
+            <NotificationBell />
+          </div>
 
           <LogoutButton />
         </div>

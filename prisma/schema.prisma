@@ -78,6 +78,11 @@ model User {
   bulletinLikes     BulletinLike[]
   bulletinComments  BulletinComment[]
   createdFloorCodes FloorInvitationCode[] @relation("CreatedCodes")
+
+  accessRequests      BulletinAccessRequest[] @relation("UserAccessRequests")
+  reviewedAccessRequests BulletinAccessRequest[] @relation("AdminReviewedAccessRequests")
+
+  notifications  Notification[] 
 }
 
 model Floor {
@@ -182,6 +187,21 @@ enum BulletinEventType {
   RECURRING // For recurring meetings/posts
 }
 
+enum BulletinAccessStatus {
+  PENDING
+  APPROVED
+  DENIED
+}
+
+enum NotificationType {
+  NEW_CHAT_MESSAGE
+  NEW_FLOOR_POST
+  NEW_BULLETIN_POST // Maybe notify users in the same school? TBD.
+  BULLETIN_ACCESS_APPROVED
+  BULLETIN_ACCESS_DENIED
+  // Add more later if needed: POST_UPVOTE, POST_COMMENT, etc.
+}
+
 model BulletinPost {
   id        String   @id @default(cuid())
   title     String
@@ -263,4 +283,44 @@ model School {
   floors       Floor[] // Relation to floors within this school
 
   bulletinPosts BulletinPost[]
+  accessRequests BulletinAccessRequest[] 
+}
+
+model BulletinAccessRequest {
+  id          String   @id @default(cuid()) // Unique ID for the request
+  clubName    String?  
+  status      BulletinAccessStatus @default(PENDING) // Status using the Enum defined above
+  requestedAt DateTime @default(now()) // When the request was submitted
+  reviewedAt  DateTime? 
+
+  // Relation to the User making the request
+  userId String
+  user   User   @relation("UserAccessRequests", fields: [userId], references: [id], onDelete: Cascade)
+
+  reviewedByAdminId String?
+  reviewedByAdmin   User?   @relation("AdminReviewedAccessRequests", fields: [reviewedByAdminId], references: [id], onDelete: SetNull)
+
+  // Store the School ID for context (assuming requests are school-specific)
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([schoolId, status]) // Index for admins querying pending requests per school
+  @@index([reviewedByAdminId])
+}
+
+model Notification {
+  id              String           @id @default(cuid())
+  message         String
+  link            String?          // Optional link for navigation
+  isRead          Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  type            NotificationType // Use the existing Enum
+  relatedEntityId String?          // Optional ID of related item (e.g., post, comment)
+
+  userId          String
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, isRead])
 }

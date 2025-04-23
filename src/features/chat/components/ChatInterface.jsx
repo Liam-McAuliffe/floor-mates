@@ -167,7 +167,7 @@ export default function ChatInterface() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-theme(space.24))] bg-medium text-accent rounded-lg shadow-lg overflow-hidden border border-light/30">
+    <div className="flex flex-col h-[calc(85vh-theme(space.24))] bg-medium text-accent rounded-lg shadow-lg overflow-hidden border border-light/30">
       <div className="p-3 border-b border-light/30 bg-dark text-sm">
         Status: {''}
         {isConnected ? (

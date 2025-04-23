@@ -1,36 +1,30 @@
-'use client';
+import Link from 'next/link';
 
-import { useSelector } from 'react-redux';
-import { selectUserProfile } from '@/store/slices/userSlice';
-import { useSession } from 'next-auth/react';
-import CreateFloorForm from '@/features/admin/components/CreateFloorForm'; // Adjust path if needed
-
-export default function AdminPage() {
-  const { status } = useSession();
-  const userProfile = useSelector(selectUserProfile);
-
-  if (status === 'loading' || !userProfile) {
-    return (
-      <main className="p-6">
-        <p className="text-white/70">Loading admin tools...</p>
-      </main>
-    );
-  }
-
-  if (status !== 'authenticated' || userProfile.role !== 'admin') {
-    return (
-      <main className="p-6">
-        <h1 className="text-2xl font-bold text-red-500 mb-4">Access Denied</h1>
-        <p className="text-white/70">
-          You do not have permission to view this page.
-        </p>
-      </main>
-    );
-  }
+export default function AdminHomePage() {
   return (
-    <main className="p-6 space-y-6">
-      <h1 className="text-3xl font-bold text-white">Admin Dashboard</h1>
-      <CreateFloorForm />
-    </main>
+    <div className="p-6 space-y-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <Link
+          href="/admin/floors/create"
+          className="block p-6 bg-white/10 hover:bg-white/20 rounded-2xl shadow-lg text-center"
+        >
+          <h2 className="text-2xl font-semibold mb-2">Create New Floor</h2>
+          <p className="text-white/70">
+            Add and configure a new residence floor.
+          </p>
+        </Link>
+        <Link
+          href="/admin/bulletin/requests"
+          className="block p-6 bg-white/10 hover:bg-white/20 rounded-2xl shadow-lg text-center"
+        >
+          <h2 className="text-2xl font-semibold mb-2">
+            Manage Bulletin Requests
+          </h2>
+          <p className="text-white/70">
+            Approve or reject club bulletin board submissions.
+          </p>
+        </Link>
+      </div>
+    </div>
   );
 }
